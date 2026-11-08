@@ -35,6 +35,8 @@
 #include <vector>
 
 #include "../../../ntcompat/cpu/simd_policy.h"
+#include "../../../ntcompat/core/osversion.h"
+#include "../../../ntcompat/thunks/thunks.h"
 
 #ifndef PF_XMMI_INSTRUCTIONS_AVAILABLE
 #define PF_XMMI_INSTRUCTIONS_AVAILABLE 6
@@ -75,6 +77,10 @@ static void test_os()
     if (GetVersionExA(&v))
         report("INFO", "os", "Windows %lu.%lu build %lu %s", v.dwMajorVersion,
                v.dwMinorVersion, v.dwBuildNumber & 0xFFFF, v.szCSDVersion);
+    const ntcompat_osversion *os = ntcompat_os();
+    if (os->emulated)
+        report("INFO", "emulating", "NTCOMPAT_EMULATE: behaving as Windows %u.%u", os->major,
+               os->minor);
     SYSTEM_INFO si;
     GetSystemInfo(&si);
     MEMORYSTATUS ms;
@@ -224,6 +230,83 @@ static void test_dll()
     int r = fn ? fn() : -1;
     CHECK("loadlibrary", r == 0x5050, "DLL statics and constructors work (got 0x%x)", r);
     CHECK("freelibrary", FreeLibrary(h) != 0, "FreeLibrary");
+}
+
+/* Run last: if implicit TLS is broken, the DLL writes into the EXE's TLS block. */
+static void test_dll_tls()
+{
+    HMODULE h = LoadLibraryA("HELLODLL.DLL");
+    if (!h) {
+        report("FAIL", "dll-tls", "HELLODLL.DLL did not load (error %lu)", GetLastError());
+        return;
+    }
+    typedef int(__cdecl * check_fn)(void);
+    check_fn fn = (check_fn)GetProcAddress(h, "hellodll_tls_check");
+    static const char *const why[] = {
+        "per-thread copies work", "this thread's copy is not initialised",
+        "a new thread did not get the initial value", "a thread could not write its copy",
+        "CreateThread failed", "thread exit code unavailable",
+        "another thread changed this thread's copy"};
+    int r = fn ? fn() : -1;
+    CHECK("dll-tls", r == 0, "thread_local in a LoadLibrary'd DLL: %s",
+          r >= 0 && r <= 6 ? why[r] : "export missing");
+    FreeLibrary(h);
+}
+
+/* ---- ntcompat import thunks (the CRT and our code call them as imports) ---- */
+
+static void test_thunks()
+{
+    char dir[MAX_PATH], path[MAX_PATH];
+    GetTempPathA(sizeof(dir), dir);
+    snprintf(path, sizeof(path), "%shellont.tmp", dir);
+    HANDLE f = CreateFileA(path, GENERIC_READ | GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS,
+                           FILE_ATTRIBUTE_NORMAL, nullptr);
+    bool ok = f != INVALID_HANDLE_VALUE;
+    LARGE_INTEGER size = {}, pos = {}, to = {};
+    DWORD n = 0;
+    if (ok) {
+        WriteFile(f, "0123456789", 10, &n, nullptr);
+        to.QuadPart = 4;
+        ok = GetFileSizeEx(f, &size) && size.QuadPart == 10 &&
+             SetFilePointerEx(f, to, &pos, FILE_BEGIN) && pos.QuadPart == 4;
+        to.QuadPart = -1;
+        ok = ok && !SetFilePointerEx(f, to, &pos, FILE_BEGIN);  // must fail, not wrap
+        CloseHandle(f);
+        DeleteFileA(path);
+    }
+    CHECK("thunk-files", ok, "GetFileSizeEx, SetFilePointerEx (%s)",
+          ntcompat_thunk_status("GetFileSizeEx") == NTCOMPAT_THUNK_NATIVE ? "system" : "fallback");
+
+    CRITICAL_SECTION cs;
+    ok = InitializeCriticalSectionAndSpinCount(&cs, 4000) != FALSE;
+    if (ok) {
+        EnterCriticalSection(&cs);
+        LeaveCriticalSection(&cs);
+        DeleteCriticalSection(&cs);
+    }
+    CHECK("thunk-cs", ok, "InitializeCriticalSectionAndSpinCount (%s)",
+          ntcompat_thunk_status("InitializeCriticalSectionAndSpinCount") == NTCOMPAT_THUNK_NATIVE
+              ? "system" : "fallback");
+
+    bool pf = (IsProcessorFeaturePresent(PF_XMMI_INSTRUCTIONS_AVAILABLE) != 0) ==
+                  (ntcompat_simd_allowed(NTCOMPAT_SIMD_SSE) != 0) &&
+              (IsProcessorFeaturePresent(PF_XMMI64_INSTRUCTIONS_AVAILABLE) != 0) ==
+                  (ntcompat_simd_allowed(NTCOMPAT_SIMD_SSE2) != 0);
+    CHECK("thunk-cpu", pf, "IsProcessorFeaturePresent agrees with the SIMD policy");
+
+    const char *names[] = {"GetFileSizeEx", "SetFilePointerEx",
+                           "InitializeCriticalSectionAndSpinCount", "IsDebuggerPresent",
+                           "IsProcessorFeaturePresent", "AreFileApisANSI", "CoTaskMemAlloc"};
+    char line[400] = "";
+    for (const char *name : names) {
+        int st = ntcompat_thunk_status(name);
+        char part[64];
+        snprintf(part, sizeof(part), "%s%s=%s", line[0] ? " " : "", name,
+                 st == NTCOMPAT_THUNK_NATIVE ? "sys" : st == NTCOMPAT_THUNK_FALLBACK ? "fb" : "-");
+        strncat(line, part, sizeof(line) - strlen(line) - 1);
+    }
+    report("INFO", "thunks", "%s", line);
 }
 
 /* ---- files ---- */
@@ -543,6 +626,8 @@ int main(int argc, char **argv)
     test_simd();
     test_misc();
     test_gui();
+    test_thunks();
+    test_dll_tls();
     report("INFO", "summary", "%d passed, %d failed, %d skipped", g_pass, g_fail, g_skip);
     if (g_log)
         fclose(g_log);

@@ -64,15 +64,21 @@ goto build
 
 :build
 echo === %TAG%: compiling
+rem ntcompat: the SIMD policy and the NT 3.51 / NT 4.0 import thunks.
 %CC% %COMMON% /c "%ROOT%\ntcompat\cpu\simd_policy.c" /Fo"%OUT%\simd_policy.obj" || exit /b 1
+%CC% %COMMON% /c "%ROOT%\ntcompat\core\osversion.c" /Fo"%OUT%\osversion.obj" || exit /b 1
+%CC% %COMMON% /c "%ROOT%\ntcompat\thunks\thunks.c" /Fo"%OUT%\thunks.obj" || exit /b 1
+ml /nologo /c /coff /Fo"%OUT%\imp_x86.obj" "%ROOT%\ntcompat\thunks\imp_x86.asm" || exit /b 1
+set NTCOMPAT="%OUT%\imp_x86.obj" "%OUT%\thunks.obj" "%OUT%\osversion.obj" "%OUT%\simd_policy.obj"
 %CC% %COMMON% %CXXONLY% /DHELLO_NT_TOOLCHAIN=\"%TAG%\" /c "%SPIKE%hello-nt\hello.cpp" /Fo"%OUT%\hello.obj" || exit /b 1
 %CC% %COMMON% %CXXONLY% /c "%SPIKE%hello-nt\hellodll.cpp" /Fo"%OUT%\hellodll.obj" || exit /b 1
 rem No C runtime at all: no security cookie, no stack probes.
 %CC% /nologo /O1 /GS- /W3 /arch:IA32 /c "%SPIKE%ntexports\ntexports.c" /Fo"%OUT%\ntexports.obj" || exit /b 1
 
 echo === %TAG%: linking
-%LINKEXE% /out:"%OUT%\HELLO-NT.EXE" "%OUT%\hello.obj" "%OUT%\simd_policy.obj" %YY% %LIBS% || exit /b 1
-%LINKDLL% /out:"%OUT%\HELLODLL.DLL" "%OUT%\hellodll.obj" %YY% kernel32.lib || exit /b 1
+rem ntcompat's objects come first so its __imp_ symbols win over the import libraries.
+%LINKEXE% /out:"%OUT%\HELLO-NT.EXE" "%OUT%\hello.obj" %NTCOMPAT% %YY% %LIBS% || exit /b 1
+%LINKDLL% /out:"%OUT%\HELLODLL.DLL" "%OUT%\hellodll.obj" %NTCOMPAT% %YY% advapi32.lib kernel32.lib || exit /b 1
 %LINKRAW% /out:"%OUT%\NTEXPORT.EXE" "%OUT%\ntexports.obj" kernel32.lib || exit /b 1
 
 if /i "%CANDIDATE%"=="msvc" (

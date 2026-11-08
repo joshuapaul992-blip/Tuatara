@@ -99,18 +99,40 @@ jobs:
             fi
           done
 
-      - name: Smoke test on the runner (Windows Server 2022)
+      - name: Check that thunked functions are no longer imported
+        id: thunked
         if: always()
-        shell: cmd
+        continue-on-error: true
+        shell: bash
         run: |
-          for /d %%d in (dist\*) do (
-            echo ===== %%d
-            pushd %%d
-            if exist HELLO-NT.EXE (HELLO-NT.EXE /quick /nogui & call echo exit code %%ERRORLEVEL%%)
-            if exist NTEXPORT.EXE (NTEXPORT.EXE & findstr /b "os dll" EXPORTS.TXT | find /c "dll")
-            del EXPORTS.TXT HELLO-NT.TXT 2>nul
-            popd
-          )
+          status=0
+          for d in dist/*/; do
+            [ -f "${d}HELLO-NT.EXE" ] || continue
+            python ntcompat/thunks/gen.py --check-imports "${d}HELLO-NT.EXE" "${d}HELLODLL.DLL" || status=1
+          done
+          exit $status
+
+      # NTCOMPAT_EMULATE makes ntcompat behave as on NT 4.0 / NT 3.51, so every
+      # fallback runs here. It doesn't change the Windows loader: whether the
+      # files load on the old systems is only shown on the real machines.
+      - name: Smoke test on the runner, natively and emulating NT 4.0 / NT 3.51
+        id: smoke
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          status=0
+          for d in dist/*/; do
+            [ -f "${d}HELLO-NT.EXE" ] || continue
+            for e in none nt4 nt351; do
+              echo "===== ${d} emulate=$e"
+              if [ "$e" = none ]; then unset NTCOMPAT_EMULATE; else export NTCOMPAT_EMULATE=$e; fi
+              (cd "$d" && ./HELLO-NT.EXE /quick /nogui) || { echo "exit code $?"; status=1; }
+            done
+            unset NTCOMPAT_EMULATE
+            (cd "$d" && ./NTEXPORT.EXE && grep -c '^dll' EXPORTS.TXT && rm -f EXPORTS.TXT HELLO-NT.TXT) || status=1
+          done
+          exit $status
 
       - name: Add instructions
         if: always()
@@ -124,9 +146,12 @@ jobs:
           path: dist/
           if-no-files-found: warn
 
-      - name: Fail if a candidate failed to build
-        if: steps.msvc.outcome != 'success' || steps.clangcl.outcome != 'success'
+      - name: Fail if a candidate failed to build or test
+        if: >-
+          steps.msvc.outcome != 'success' || steps.clangcl.outcome != 'success' ||
+          steps.thunked.outcome != 'success' || steps.smoke.outcome != 'success'
         shell: bash
         run: |
-          echo "msvc: ${{ steps.msvc.outcome }}, clang-cl: ${{ steps.clangcl.outcome }}"
+          echo "build msvc: ${{ steps.msvc.outcome }}, build clang-cl: ${{ steps.clangcl.outcome }}"
+          echo "thunk imports: ${{ steps.thunked.outcome }}, smoke tests: ${{ steps.smoke.outcome }}"
           exit 1

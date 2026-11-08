@@ -1,0 +1,18 @@
+# Imports ntcompat replaces, so binaries load on Windows NT 3.51 and NT 4.0.
+#
+# Each line: DLL, function, bytes of stdcall arguments, the first Windows
+# version known to export it, and a note. The stub ntcompat_<function> in
+# thunks.c calls the real function when the system has it, and otherwise
+# a fallback. Under NTCOMPAT_EMULATE, functions newer than the emulated
+# version take the fallback, so CI exercises them on new Windows.
+#
+# After editing, run: python3 ntcompat/thunks/gen.py
+#
+# dll       function                                args  since  note
+kernel32    GetFileSizeEx                           8     5.0    fallback GetFileSize
+kernel32    SetFilePointerEx                        20    5.0    fallback SetFilePointer
+kernel32    InitializeCriticalSectionAndSpinCount   8     4.0    NT 4.0 SP3; fallback InitializeCriticalSection
+kernel32    IsDebuggerPresent                       0     4.0    fallback: not debugged
+kernel32    IsProcessorFeaturePresent               4     4.0    SIMD answers always come from the ntcompat SIMD policy
+kernel32    AreFileApisANSI                         0     4.0    NT 3.51 availability unconfirmed; fallback TRUE
+ole32       CoTaskMemAlloc                          4     3.51   loaded on demand, so ole32.dll is not a static import; fallback process heap

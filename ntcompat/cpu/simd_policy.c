@@ -3,6 +3,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "simd_policy.h"
+#include "../core/osversion.h"
 
 #include <windows.h>
 
@@ -135,17 +136,12 @@ static int ymm_enabled(void)
 
 static void compute(ntcompat_simd *p)
 {
-    DWORD v = GetVersion();
+    const ntcompat_osversion *os = ntcompat_os();
     int xmm_ok, ymm_ok;
 
-    p->os_major = LOBYTE(LOWORD(v));
-    p->os_minor = HIBYTE(LOWORD(v));
-    p->emulated = 1;
-    if (env_equals("NTCOMPAT_EMULATE", "nt351"))    { p->os_major = 3; p->os_minor = 51; }
-    else if (env_equals("NTCOMPAT_EMULATE", "nt4")) { p->os_major = 4; p->os_minor = 0; }
-    else if (env_equals("NTCOMPAT_EMULATE", "w2k")) { p->os_major = 5; p->os_minor = 0; }
-    else if (env_equals("NTCOMPAT_EMULATE", "xp"))  { p->os_major = 5; p->os_minor = 1; }
-    else p->emulated = 0;
+    p->os_major = os->major;
+    p->os_minor = os->minor;
+    p->emulated = os->emulated;
 
     p->cpu = cpu_features();
     p->winsimd_flags = read_winsimd_flags(&p->winsimd_present);

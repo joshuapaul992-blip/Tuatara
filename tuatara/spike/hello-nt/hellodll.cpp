@@ -22,3 +22,33 @@ extern "C" __declspec(dllexport) int __cdecl hellodll_check(void)
 {
     return (g_ctor_value << 8) | (name() == "hello-dll" ? 0x50 : 0);
 }
+
+/* Implicit TLS in a DLL loaded with LoadLibrary: Windows before Vista
+ * doesn't set it up, so it depends on YY-Thunks' DLL entry point. Each
+ * thread must see its own copy, starting from the initial value. */
+static thread_local int t_value = 7;
+
+static DWORD WINAPI tls_thread(LPVOID)
+{
+    if (t_value != 7)
+        return 2;  /* a new thread didn't get the initial value */
+    t_value = 9;
+    return t_value == 9 ? 0 : 3;
+}
+
+extern "C" __declspec(dllexport) int __cdecl hellodll_tls_check(void)
+{
+    if (t_value != 7)
+        return 1;  /* this thread's copy isn't initialised */
+    t_value = 8;
+    HANDLE h = CreateThread(nullptr, 0, tls_thread, nullptr, 0, nullptr);
+    if (!h)
+        return 4;
+    WaitForSingleObject(h, INFINITE);
+    DWORD code = 5;
+    GetExitCodeThread(h, &code);
+    CloseHandle(h);
+    if (code)
+        return (int)code;
+    return t_value == 8 ? 0 : 6;  /* the other thread changed our copy */
+}

@@ -7,10 +7,10 @@ name: Tuatara tools
 on:
   push:
     branches: [tuatara]
-    paths: ["tuatara/**", ".github/workflows/tuatara-tools.yml"]
+    paths: ["tuatara/**", "ntcompat/**", ".github/workflows/tuatara-tools.yml"]
   pull_request:
     branches: [tuatara]
-    paths: ["tuatara/**", ".github/workflows/tuatara-tools.yml"]
+    paths: ["tuatara/**", "ntcompat/**", ".github/workflows/tuatara-tools.yml"]
 
 permissions:
   contents: read
@@ -22,7 +22,9 @@ jobs:
       - name: Check out the tuatara/ folder only
         uses: actions/checkout@v4
         with:
-          sparse-checkout: tuatara
+          sparse-checkout: |
+            tuatara
+            ntcompat
           sparse-checkout-cone-mode: true
 
       - name: Install LLVM tools for the test fixtures
@@ -30,6 +32,9 @@ jobs:
 
       - name: Run apiaudit tests
         run: python3 -m unittest discover -v -s tuatara/tools/apiaudit/tests -t tuatara/tools
+
+      - name: Check the generated ntcompat thunk tables are up to date
+        run: python3 ntcompat/thunks/gen.py --check
 
       - name: Check the allowlist parses
         run: |
