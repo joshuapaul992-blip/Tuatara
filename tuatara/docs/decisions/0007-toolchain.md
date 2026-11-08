@@ -79,6 +79,24 @@ clang 20.1, Windows SDK 10.0.26100, YY-Thunks 1.2.3):
   and earlier. Candidate A's object-file form of YY-Thunks imports nothing
   from ntdll.
 
+## NT 3.51 import gaps closed (ntcompat thunks)
+
+The imports above that NT 4.0 or NT 3.51 lack now go through
+[ntcompat's import thunks](../../../ntcompat/README.md): the binaries define the
+`__imp_` pointers themselves, so the functions no longer appear in the import
+table, and each stub calls the system's function or a fallback. `ole32.dll`
+is loaded on demand instead of being a static import. In CI, candidate A
+passes every check natively and with `NTCOMPAT_EMULATE=nt4` / `nt351`, and
+`gen.py --check-imports` confirms none of the thunked functions is imported.
+
+What only the real machines can still show:
+
+- whether the NT 3.51 and NT 4.0 loaders accept these PE files at all;
+- whether any *other* import is missing (the baselines from `NTEXPORT`
+  answer that, and `apiaudit` then checks every build);
+- whether `thread_local` in a DLL loaded with `LoadLibrary` works there
+  (the `dll-tls` check; Windows Server and Wine always pass it).
+
 **Current lean: candidate A** (MSVC, as upstream builds, with
 `apiaudit set-version`). It is confirmed only after the runs on the real
 machines; B stays in the spike to compare.
