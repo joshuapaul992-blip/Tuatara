@@ -163,6 +163,20 @@ suite on real NT 3.51:
   nothing sets up `thread_local` in a runtime-loaded DLL. The test now checks
   for a TLS block first and reports instead.
 
+### Result: build `9770035`, variant C, on the same NT 3.51 machine
+
+**24 of 26 checks pass.** `threads` passes (`WaitForMultipleObjects` returned
+`WAIT_OBJECT_0 + 3`, confirming the test bug above). The two failures:
+
+- `dll-tls`: "no TLS block for this DLL", as expected without YY-Thunks: NT
+  3.51 doesn't set up implicit TLS for a DLL loaded with `LoadLibrary`.
+- `winsock`: `wsock32` `socket()` fails with 10055 (`WSAENOBUFS`). Most likely
+  the machine's network setup (TCP/IP not installed or not bound, or its
+  driver not started); to be checked with `ping 127.0.0.1` there.
+
+Still to run on NT 3.51: candidate A (does YY-Thunks' TLS emulation work, or
+crash, on NT 3.51?), `THRTEST`, and `NTEXPORT` for the baseline.
+
 Rule for Tuatara code: **never pass NULL for `CreateThread`'s thread-ID
 pointer**, and don't rely on implicit TLS (`thread_local`,
 `__declspec(thread)`) in DLLs loaded at runtime unless something provides it.
