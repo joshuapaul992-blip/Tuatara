@@ -66,11 +66,11 @@ overview; update it when a milestone's scope changes.
 |---|---|
 | M0.1 `tuatara` branch, README, docs, decision records | Done |
 | M0.3 `apiaudit`: imports, delay imports, ordinals, forwarders, TLS, header versions, allowlist | Done |
-| M0.2 Baselines for `nt351-sp5`, `nt4-sp6a`, `w2k-sp4` | Tooling done; needs the install media |
+| M0.2 Baselines for `nt351-sp5`, `nt4-sp6a`, `w2k-sp4` | Tooling done: `NTEXPORT.EXE` on each real machine, or `apiaudit media` from install media. Needs runs on the machines |
 | First gap report against roytam1's XP build of Serpent | Needs the baselines |
-| M0.4 Test lab: QEMU (`pentium2`, `pentium3`, an SSE2 model), FAT transfer disk, auto-run | To do |
-| M0.5 Toolchain spike and `hello-nt` | To do |
-| M0.6 CI: `apiaudit` tests on Linux; Windows build job | `apiaudit` tests done |
+| M0.4 Test lab | Primary: the real NT 3.51 / NT 4.0 / 2000 machines, using [`RUNME.TXT`](../spike/RUNME.TXT). QEMU here later, once install media is available |
+| M0.5 Toolchain spike: `hello-nt`, both candidates built in CI | Built; needs runs on the machines |
+| M0.6 CI: `apiaudit` tests on Linux; Windows spike build | Done |
 
 ## Risks
 
