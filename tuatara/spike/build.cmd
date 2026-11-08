@@ -87,8 +87,9 @@ rem without it lld-link refuses to link and link.exe drops the SafeSEH table.
 %CC% %COMMON% /c "%ROOT%\ntcompat\cpu\simd_policy.c" /Fo"%OUT%\simd_policy.obj" || exit /b 1
 %CC% %COMMON% /c "%ROOT%\ntcompat\core\osversion.c" /Fo"%OUT%\osversion.obj" || exit /b 1
 %CC% %COMMON% /c "%ROOT%\ntcompat\thunks\thunks.c" /Fo"%OUT%\thunks.obj" || exit /b 1
+%CC% %COMMON% /c "%ROOT%\ntcompat\crypto\entropy.c" /Fo"%OUT%\entropy.obj" || exit /b 1
 ml /nologo /c /coff /safeseh /Fo"%OUT%\imp_x86.obj" "%ROOT%\ntcompat\thunks\imp_x86.asm" || exit /b 1
-set NTCOMPAT="%OUT%\imp_x86.obj" "%OUT%\thunks.obj" "%OUT%\osversion.obj" "%OUT%\simd_policy.obj"
+set NTCOMPAT="%OUT%\imp_x86.obj" "%OUT%\thunks.obj" "%OUT%\osversion.obj" "%OUT%\simd_policy.obj" "%OUT%\entropy.obj"
 rem Without YY-Thunks, ntcompat also provides the functions YY-Thunks would.
 if /i "%CANDIDATE%"=="noyy" (
     ml /nologo /c /coff /safeseh /Fo"%OUT%\imp_noyy.obj" "%ROOT%\ntcompat\thunks\imp_noyy_x86.asm" || exit /b 1
