@@ -14,6 +14,7 @@
 #include "thunks.h"
 #include "../core/osversion.h"
 #include "../cpu/simd_policy.h"
+#include "../crypto/entropy.h"
 
 #include <windows.h>
 #if defined(_MSC_VER)
@@ -340,4 +341,14 @@ HANDLE WINAPI ntcompat_FindFirstFileExW(LPCWSTR name, int level, LPVOID data, in
     /* Both info levels fill a WIN32_FIND_DATAW; directory-only searches are
      * advisory, so a plain search is a correct answer. */
     return FindFirstFileW(name, (LPWIN32_FIND_DATAW)data);
+}
+
+/* RtlGenRandom, NSS's random source. */
+BOOLEAN WINAPI ntcompat_SystemFunction036(PVOID buffer, ULONG length)
+{
+    typedef BOOLEAN(WINAPI * fn_t)(PVOID, ULONG);
+    fn_t real = (fn_t)real_fn(T_SystemFunction036);
+    if (real)
+        return real(buffer, length);
+    return ntcompat_random(buffer, length) ? TRUE : FALSE;
 }

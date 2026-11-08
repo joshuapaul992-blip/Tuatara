@@ -14,9 +14,14 @@
 set -uo pipefail
 dir=$1
 cd "$dir"
-tmp=$(mktemp -d)
-openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -nodes -days 2 \
-    -subj "/CN=localhost" -keyout "$tmp/key.pem" -out "$tmp/cert.pem" 2>/dev/null
+# Work in a relative directory: the native Windows openssl.exe and
+# tstclnt.exe don't understand the shell's /tmp paths.
+tmp=tls13-tmp
+rm -rf "$tmp"
+mkdir -p "$tmp"
+openssl req -x509 -newkey rsa:2048 -nodes -days 2 -subj "/CN=localhost" \
+    -keyout "$tmp/key.pem" -out "$tmp/cert.pem" > "$tmp/req.log" 2>&1 ||
+    { echo "FAIL: could not make a test certificate"; cat "$tmp/req.log"; exit 1; }
 
 openssl s_server -accept 4433 -tls1_3 -www -cert "$tmp/cert.pem" -key "$tmp/key.pem" \
     > "$tmp/server.log" 2>&1 &
@@ -37,9 +42,11 @@ grep -aE "Protocol|Cipher|New, " "$tmp/client.out" | head -5
 
 if grep -aq "TLSv1.3" "$tmp/client.out"; then
     echo "PASS: TLS 1.3 handshake completed"
+    rm -rf "$tmp"
     exit 0
 fi
 echo "FAIL: no TLS 1.3 session"
 echo "=== client output"; head -c 2000 "$tmp/client.out"
 echo "=== server log"; cat "$tmp/server.log"
+rm -rf "$tmp"
 exit 1

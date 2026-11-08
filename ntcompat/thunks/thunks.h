@@ -25,6 +25,10 @@ extern "C" {
  * or -2 if it isn't a thunked function. */
 int ntcompat_thunk_status(const char *function);
 
+/* The same for a lazy-bound import (set "lazy"): NATIVE once a DLL provided
+ * it, FALLBACK when none did and calls get the failure value. */
+int ntcompat_lazy_status(const char *function);
+
 #ifdef __cplusplus
 }
 #endif

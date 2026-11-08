@@ -17,6 +17,12 @@
 #include <intrin.h> /* for _xgetbv() */
 #endif
 
+#ifdef TUATARA_NTCOMPAT
+/* Tuatara: SIMD is used only where the OS or WINSIMD saves the registers
+ * (ntcompat/cpu/simd_policy.h, tuatara/docs/decisions/0009-winsimd.md). */
+#include "cpu/simd_policy.h"
+#endif
+
 static PRCallOnceType coFreeblInit;
 
 /* State variables. */
@@ -89,6 +95,12 @@ CheckX86CPUSupport()
                    disable_avx == NULL;
     ssse3_support_ = (PRBool)((ecx & ECX_SSSE3) != 0 &&
                               disable_ssse3 == NULL);
+#ifdef TUATARA_NTCOMPAT
+    aesni_support_ = aesni_support_ && ntcompat_simd_allowed(NTCOMPAT_SIMD_AESNI);
+    clmul_support_ = clmul_support_ && ntcompat_simd_allowed(NTCOMPAT_SIMD_PCLMUL);
+    avx_support_ = avx_support_ && ntcompat_simd_allowed(NTCOMPAT_SIMD_AVX);
+    ssse3_support_ = ssse3_support_ && ntcompat_simd_allowed(NTCOMPAT_SIMD_SSSE3);
+#endif
 }
 #endif /* NSS_X86_OR_X64 */
 

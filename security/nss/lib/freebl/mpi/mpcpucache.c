@@ -3,6 +3,9 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "mpi.h"
+#ifdef TUATARA_NTCOMPAT
+#include "cpu/simd_policy.h"
+#endif
 #include "prtypes.h"
 
 /*
@@ -643,6 +646,13 @@ s_mpi_is_sse2()
     }
 
     freebl_cpuid(1, &eax, &ebx, &ecx, &edx);
+#ifdef TUATARA_NTCOMPAT
+    /* Tuatara: CPUID isn't enough; NT 3.51/4.0 don't save SSE registers
+     * unless WINSIMD does (ntcompat/cpu/simd_policy.h). */
+    if (!ntcompat_simd_allowed(NTCOMPAT_SIMD_SSE2)) {
+        return 0;
+    }
+#endif
     return (edx & SSE2_FLAG) == SSE2_FLAG;
 }
 #endif

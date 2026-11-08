@@ -29,6 +29,8 @@
         PUBLIC __imp__InterlockedFlushSList@4, _InterlockedFlushSList@4
         EXTERN _ntcompat_FindFirstFileExW@24:PROC
         PUBLIC __imp__FindFirstFileExW@24, _FindFirstFileExW@24
+        EXTERN _ntcompat_SystemFunction036@8:PROC
+        PUBLIC __imp__SystemFunction036@8, _SystemFunction036@8
 
 ; The pointers that dllimport callers read.
         .data
@@ -43,6 +45,7 @@ __imp__InitializeCriticalSectionEx@12 DD _ntcompat_InitializeCriticalSectionEx@1
 __imp__InitializeSListHead@4 DD _ntcompat_InitializeSListHead@4
 __imp__InterlockedFlushSList@4 DD _ntcompat_InterlockedFlushSList@4
 __imp__FindFirstFileExW@24 DD _ntcompat_FindFirstFileExW@24
+__imp__SystemFunction036@8 DD _ntcompat_SystemFunction036@8
 
 ; Direct-call entry points, as an import library would provide. Without
 ; them a direct call pulls in the import library's member, which
@@ -81,5 +84,8 @@ _InterlockedFlushSList@4 ENDP
 _FindFirstFileExW@24 PROC
         jmp DWORD PTR [__imp__FindFirstFileExW@24]
 _FindFirstFileExW@24 ENDP
+_SystemFunction036@8 PROC
+        jmp DWORD PTR [__imp__SystemFunction036@8]
+_SystemFunction036@8 ENDP
 
         END

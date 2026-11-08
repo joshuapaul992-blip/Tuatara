@@ -32,3 +32,4 @@ kernel32    InitializeCriticalSectionEx             12    6.0    noyy  fallback 
 kernel32    InitializeSListHead                     4     5.1    noyy  fallback: own SList on cmpxchg8b
 kernel32    InterlockedFlushSList                   4     5.1    noyy  fallback: own SList on cmpxchg8b
 kernel32    FindFirstFileExW                        24    4.0    noyy  fallback FindFirstFileW (basic name search only)
+advapi32    SystemFunction036                       8     5.1    noyy  RtlGenRandom; fallback CryptGenRandom (NT 4.0, 2000), then ntcompat's own pool (crypto/entropy.c)
