@@ -65,10 +65,12 @@ goto build
 :build
 echo === %TAG%: compiling
 rem ntcompat: the SIMD policy and the NT 3.51 / NT 4.0 import thunks.
+rem /safeseh marks the assembled object SafeSEH-compatible (it has no handlers);
+rem without it lld-link refuses to link and link.exe drops the SafeSEH table.
 %CC% %COMMON% /c "%ROOT%\ntcompat\cpu\simd_policy.c" /Fo"%OUT%\simd_policy.obj" || exit /b 1
 %CC% %COMMON% /c "%ROOT%\ntcompat\core\osversion.c" /Fo"%OUT%\osversion.obj" || exit /b 1
 %CC% %COMMON% /c "%ROOT%\ntcompat\thunks\thunks.c" /Fo"%OUT%\thunks.obj" || exit /b 1
-ml /nologo /c /coff /Fo"%OUT%\imp_x86.obj" "%ROOT%\ntcompat\thunks\imp_x86.asm" || exit /b 1
+ml /nologo /c /coff /safeseh /Fo"%OUT%\imp_x86.obj" "%ROOT%\ntcompat\thunks\imp_x86.asm" || exit /b 1
 set NTCOMPAT="%OUT%\imp_x86.obj" "%OUT%\thunks.obj" "%OUT%\osversion.obj" "%OUT%\simd_policy.obj"
 %CC% %COMMON% %CXXONLY% /DHELLO_NT_TOOLCHAIN=\"%TAG%\" /c "%SPIKE%hello-nt\hello.cpp" /Fo"%OUT%\hello.obj" || exit /b 1
 %CC% %COMMON% %CXXONLY% /c "%SPIKE%hello-nt\hellodll.cpp" /Fo"%OUT%\hellodll.obj" || exit /b 1
