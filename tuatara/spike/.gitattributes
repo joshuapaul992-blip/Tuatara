@@ -1,0 +1,4 @@
+# Batch files need CRLF: cmd.exe mis-parses labels in LF-only files.
+*.cmd text eol=crlf
+# Shipped as-is to NT machines, where Notepad needs CRLF.
+RUNME.TXT -text
