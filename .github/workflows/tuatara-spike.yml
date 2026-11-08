@@ -141,6 +141,7 @@ jobs:
             done
             unset NTCOMPAT_EMULATE
             (cd "$d" && ./NTEXPORT.EXE && grep -c '^dll' EXPORTS.TXT && rm -f EXPORTS.TXT HELLO-NT.TXT) || status=1
+            (cd "$d" && ./THRTEST.EXE && grep -q "^0 of" THRTEST.TXT && rm -f THRTEST.TXT) || status=1
           done
           exit $status
 

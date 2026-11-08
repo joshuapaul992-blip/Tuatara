@@ -41,7 +41,8 @@ extern "C" __declspec(dllexport) int __cdecl hellodll_tls_check(void)
     if (t_value != 7)
         return 1;  /* this thread's copy isn't initialised */
     t_value = 8;
-    HANDLE h = CreateThread(nullptr, 0, tls_thread, nullptr, 0, nullptr);
+    DWORD tid;  /* never NULL: see hello.cpp */
+    HANDLE h = CreateThread(nullptr, 0, tls_thread, nullptr, 0, &tid);
     if (!h)
         return 4;
     WaitForSingleObject(h, INFINITE);

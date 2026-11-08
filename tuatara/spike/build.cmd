@@ -98,6 +98,7 @@ if /i "%CANDIDATE%"=="noyy" (
 %CC% %COMMON% %CXXONLY% /c "%SPIKE%hello-nt\hellodll.cpp" /Fo"%OUT%\hellodll.obj" || exit /b 1
 rem No C runtime at all: no security cookie, no stack probes.
 %CC% /nologo /O1 /GS- /W3 /arch:IA32 /c "%SPIKE%ntexports\ntexports.c" /Fo"%OUT%\ntexports.obj" || exit /b 1
+%CC% /nologo /O1 /GS- /W3 /arch:IA32 /c "%SPIKE%thrtest\thrtest.c" /Fo"%OUT%\thrtest.obj" || exit /b 1
 
 echo === %TAG%: linking
 rem ntcompat's objects come first so its __imp_ symbols win over the import libraries.
@@ -105,11 +106,12 @@ rem Map files turn a CRASH line's module offset into a function name.
 %LINKEXE% /out:"%OUT%\HELLO-NT.EXE" /map:"%OUT%\HELLO-NT.MAP" "%OUT%\hello.obj" %NTCOMPAT% %YY% %LIBS% || exit /b 1
 %LINKDLL% /out:"%OUT%\HELLODLL.DLL" /map:"%OUT%\HELLODLL.MAP" "%OUT%\hellodll.obj" %NTCOMPAT% %YY% advapi32.lib kernel32.lib || exit /b 1
 %LINKRAW% /out:"%OUT%\NTEXPORT.EXE" "%OUT%\ntexports.obj" kernel32.lib || exit /b 1
+%LINKRAW% /out:"%OUT%\THRTEST.EXE" "%OUT%\thrtest.obj" kernel32.lib user32.lib || exit /b 1
 
 if defined SETVERSION (
     echo === %TAG%: setting PE versions to 3.10 ^(link.exe won't write them^)
     python "%ROOT%\tuatara\tools\apiaudit" set-version --os 3.10 --subsystem 3.10 ^
-        "%OUT%\HELLO-NT.EXE" "%OUT%\HELLODLL.DLL" "%OUT%\NTEXPORT.EXE" || exit /b 1
+        "%OUT%\HELLO-NT.EXE" "%OUT%\HELLODLL.DLL" "%OUT%\NTEXPORT.EXE" "%OUT%\THRTEST.EXE" || exit /b 1
 )
 > "%OUT%\BUILD.TXT" echo %TAG% build %BUILD_ID%
 del "%OUT%\*.obj" "%OUT%\*.lib" "%OUT%\*.exp" 2>nul

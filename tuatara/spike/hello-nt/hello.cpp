@@ -9,6 +9,8 @@
  *     HELLO-NT [/quick] [/nogui] [/only=test,...] [/skip=test,...]
  *
  * Tests: os crt fpu threads dll files winsock simd misc gui thunks dlltls.
+ * The tests run in a child process (/worker) so that its exit code can be
+ * reported even if it dies; /nosupervise runs them directly.
  * A crash prints a CRASH line with the exception, module and offset;
  * /crash triggers one on purpose to check that reporting works.
  *
@@ -61,6 +63,9 @@ static int g_pass, g_fail, g_skip;
 static bool g_quick, g_nogui, g_crash;
 static const char *g_only, *g_skiplist;
 static const char *volatile g_current = "startup";
+/* CreateThread's thread-ID pointer: Windows 95 requires it, and NT 3.51 may
+ * write through it unchecked, so never pass NULL. */
+static DWORD g_tid;
 
 static void emit(const char *console_line, const char *log_line)
 {
@@ -123,7 +128,7 @@ static LONG WINAPI crash_filter(EXCEPTION_POINTERS *ep)
     }
     lstrcatA(line, "\r\n");
     emit(line, line);
-    ExitProcess(3);
+    ExitProcess(0xC0DE);  /* tells the supervisor the crash handler ran */
     return EXCEPTION_EXECUTE_HANDLER;
 }
 
@@ -280,7 +285,7 @@ static void test_threads()
     for (int i = 0; i < 4; i++) {
         step(i == 0 ? "threads:create1" : i == 1 ? "threads:create2" :
              i == 2 ? "threads:create3" : "threads:create4");
-        threads[i] = CreateThread(nullptr, 0, counting_thread, (LPVOID)(INT_PTR)(i + 1), 0, nullptr);
+        threads[i] = CreateThread(nullptr, 0, counting_thread, (LPVOID)(INT_PTR)(i + 1), 0, &g_tid);
         if (!threads[i]) {
             report("FAIL", "threads", "CreateThread failed (error %lu)", GetLastError());
             return;
@@ -593,7 +598,7 @@ static void test_simd()
             jobs[t].pattern[i] = (float)(t * 1000 + i + 1);
         jobs[t].iters = g_quick ? 2000000u : 30000000u;
         jobs[t].bad = 0;
-        threads[t] = CreateThread(nullptr, 0, xmm_thread, &jobs[t], 0, nullptr);
+        threads[t] = CreateThread(nullptr, 0, xmm_thread, &jobs[t], 0, &g_tid);
     }
     WaitForMultipleObjects(4, threads, TRUE, INFINITE);
     unsigned bad = 0;
@@ -697,6 +702,53 @@ static void test_misc()
     CHECK("virtualalloc", ok, "reserve 256 MB, commit 1 MB");
 }
 
+static int run_supervised()
+{
+    char cmd[1024];
+    _snprintf(cmd, sizeof(cmd) - 12, "%s", GetCommandLineA());
+    cmd[sizeof(cmd) - 12] = 0;
+    strcat(cmd, " /worker");
+    STARTUPINFOA si;
+    PROCESS_INFORMATION pi;
+    ZeroMemory(&si, sizeof(si));
+    si.cb = sizeof(si);
+    /* No crash dialogs: an unhandled exception ends the child with its code. */
+    SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
+    if (!CreateProcessA(nullptr, cmd, nullptr, nullptr, TRUE, 0, nullptr, nullptr, &si, &pi)) {
+        char line[128];
+        _snprintf(line, sizeof(line), "FAIL supervisor     could not start the worker (error %lu)\r\n",
+                  GetLastError());
+        emit(line, "");
+        return 1;
+    }
+    WaitForSingleObject(pi.hProcess, INFINITE);
+    DWORD code = 0xFFFFFFFF;
+    GetExitCodeProcess(pi.hProcess, &code);
+    CloseHandle(pi.hThread);
+    CloseHandle(pi.hProcess);
+
+    const char *what = code == 0 ? "all checks passed"
+                     : code == 0xC0DE ? "the crash handler ended it (see the CRASH line)"
+                     : code < 0x100 ? "that many checks failed"
+                     : code == 0xC0000005 ? "access violation, not caught by the crash handler"
+                     : code == 0xC000001D ? "illegal instruction"
+                     : code == 0xC00000FD ? "stack overflow"
+                     : code == 0xC0000409 ? "fast-fail / stack buffer overrun"
+                     : code == 0xC0000142 ? "DLL initialisation failed"
+                     : "unexpected";
+    char line[200];
+    _snprintf(line, sizeof(line), "INFO worker-exit    0x%08lX: %s\r\n", code, what);
+    line[sizeof(line) - 1] = 0;
+    g_log = CreateFileA("HELLO-NT.TXT", GENERIC_WRITE, FILE_SHARE_READ, nullptr, OPEN_ALWAYS,
+                        FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (g_log != INVALID_HANDLE_VALUE)
+        SetFilePointer(g_log, 0, nullptr, FILE_END);
+    emit(line, line);
+    if (g_log != INVALID_HANDLE_VALUE)
+        CloseHandle(g_log);
+    return code < 0x100 ? (int)code : 255;
+}
+
 static DWORD WINAPI crash_thread(LPVOID)
 {
     *(volatile int *)(INT_PTR)0x10 = 1;
@@ -713,6 +765,17 @@ int main(int argc, char **argv)
         else if (!_strnicmp(argv[i], "/skip=", 6)) g_skiplist = argv[i] + 6;
     }
     g_out = GetStdHandle(STD_OUTPUT_HANDLE);
+
+    /* Unless asked not to, run the tests in a child process and report how
+     * it ended: a process that dies silently still yields an exit code. */
+    bool worker = false, supervise = true;
+    for (int i = 1; i < argc; i++) {
+        if (!_stricmp(argv[i], "/worker")) worker = true;
+        if (!_stricmp(argv[i], "/nosupervise")) supervise = false;
+    }
+    if (supervise && !worker)
+        return run_supervised();
+
     g_log = CreateFileA("HELLO-NT.TXT", GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS,
                         FILE_ATTRIBUTE_NORMAL, nullptr);
     SetUnhandledExceptionFilter(crash_filter);
@@ -731,7 +794,7 @@ int main(int argc, char **argv)
 
     if (g_crash) {  // checks that the crash report works: fault in a new thread
         step("crash-test");
-        HANDLE h = CreateThread(nullptr, 0, crash_thread, nullptr, 0, nullptr);
+        HANDLE h = CreateThread(nullptr, 0, crash_thread, nullptr, 0, &g_tid);
         WaitForSingleObject(h, 10000);
     }
 

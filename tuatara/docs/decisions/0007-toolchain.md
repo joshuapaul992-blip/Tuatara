@@ -131,6 +131,17 @@ So NT 3.51 really lacks it, and the VS2022 runtime doesn't load there
 without YY-Thunks or ntcompat's replacements. (Builds now carry their commit
 ID in `BUILD.TXT`, in `hello-nt`'s first line and in the artifact name.)
 
+With the right build (`8839292`), **variant C stops at the same place as
+A**: after `threads:create1`, with no line from the new thread, no `CRASH`
+line and no `FAIL`. So YY-Thunks is not the cause. What both share is the
+static CRT, ntcompat and the test code, which passed NULL for
+`CreateThread`'s thread-ID pointer (Windows 95 documents that as invalid;
+NT 3.51 may write through it unchecked). The next build passes a real
+variable everywhere, runs the tests in a supervised child process so the
+exit code is always reported (NT 3.51's `cmd` has no `%ERRORLEVEL%`), and
+adds `THRTEST.EXE`, which runs each way of starting a thread in its own
+process with no C runtime at all.
+
 **Current lean: candidate A** (MSVC, as upstream builds, with
 `apiaudit set-version`). It is confirmed only after the runs on the real
 machines; B stays in the spike to compare.
