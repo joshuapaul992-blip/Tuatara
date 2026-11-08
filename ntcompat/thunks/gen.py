@@ -143,13 +143,20 @@ def render_lazy_asm(rows):
             "        .data"]
     for i, r in enumerate(rows):
         out.append(f"__imp__{r['func']}@{r['args']} DD ntc_bind_{i}")
+    def table(label, items):
+        # ml.exe limits line length, so four entries per line.
+        if not items:
+            return [f"{label} DD 0"]
+        lines = []
+        for k in range(0, len(items), 4):
+            prefix = label if k == 0 else " " * len(label)
+            lines.append(f"{prefix} DD " + ", ".join(items[k:k + 4]))
+        return lines
+
     out += ["", "; Where each slot, binder and failure stub is, for lazy.c."]
-    out.append("_ntcompat_lazy_slots " + ("DD " + ", ".join(f"__imp__{r['func']}@{r['args']}" for r in rows)
-                                          if rows else "DD 0"))
-    out.append("_ntcompat_lazy_binders " + ("DD " + ", ".join(f"ntc_bind_{i}" for i in range(len(rows)))
-                                            if rows else "DD 0"))
-    out.append("_ntcompat_lazy_fail_stubs " + ("DD " + ", ".join(f"ntc_fail_{i}" for i in range(len(rows)))
-                                               if rows else "DD 0"))
+    out += table("_ntcompat_lazy_slots", [f"__imp__{r['func']}@{r['args']}" for r in rows])
+    out += table("_ntcompat_lazy_binders", [f"ntc_bind_{i}" for i in range(len(rows))])
+    out += table("_ntcompat_lazy_fail_stubs", [f"ntc_fail_{i}" for i in range(len(rows))])
     out += ["", "        .code"]
     for i, r in enumerate(rows):
         name = f"{r['func']}@{r['args']}"

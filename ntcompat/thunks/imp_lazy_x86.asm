@@ -77,9 +77,30 @@ __imp__WSACleanup@0 DD ntc_bind_28
 __imp____WSAFDIsSet@8 DD ntc_bind_29
 
 ; Where each slot, binder and failure stub is, for lazy.c.
-_ntcompat_lazy_slots DD __imp__accept@12, __imp__bind@12, __imp__closesocket@4, __imp__connect@12, __imp__getpeername@12, __imp__getsockname@12, __imp__getsockopt@20, __imp__htonl@4, __imp__htons@4, __imp__ioctlsocket@12, __imp__listen@8, __imp__ntohl@4, __imp__ntohs@4, __imp__recv@16, __imp__recvfrom@24, __imp__select@20, __imp__send@16, __imp__sendto@24, __imp__setsockopt@20, __imp__shutdown@8, __imp__socket@12, __imp__gethostbyaddr@12, __imp__gethostbyname@4, __imp__getprotobyname@4, __imp__getprotobynumber@4, __imp__gethostname@8, __imp__WSAGetLastError@0, __imp__WSAStartup@8, __imp__WSACleanup@0, __imp____WSAFDIsSet@8
-_ntcompat_lazy_binders DD ntc_bind_0, ntc_bind_1, ntc_bind_2, ntc_bind_3, ntc_bind_4, ntc_bind_5, ntc_bind_6, ntc_bind_7, ntc_bind_8, ntc_bind_9, ntc_bind_10, ntc_bind_11, ntc_bind_12, ntc_bind_13, ntc_bind_14, ntc_bind_15, ntc_bind_16, ntc_bind_17, ntc_bind_18, ntc_bind_19, ntc_bind_20, ntc_bind_21, ntc_bind_22, ntc_bind_23, ntc_bind_24, ntc_bind_25, ntc_bind_26, ntc_bind_27, ntc_bind_28, ntc_bind_29
-_ntcompat_lazy_fail_stubs DD ntc_fail_0, ntc_fail_1, ntc_fail_2, ntc_fail_3, ntc_fail_4, ntc_fail_5, ntc_fail_6, ntc_fail_7, ntc_fail_8, ntc_fail_9, ntc_fail_10, ntc_fail_11, ntc_fail_12, ntc_fail_13, ntc_fail_14, ntc_fail_15, ntc_fail_16, ntc_fail_17, ntc_fail_18, ntc_fail_19, ntc_fail_20, ntc_fail_21, ntc_fail_22, ntc_fail_23, ntc_fail_24, ntc_fail_25, ntc_fail_26, ntc_fail_27, ntc_fail_28, ntc_fail_29
+_ntcompat_lazy_slots DD __imp__accept@12, __imp__bind@12, __imp__closesocket@4, __imp__connect@12
+                     DD __imp__getpeername@12, __imp__getsockname@12, __imp__getsockopt@20, __imp__htonl@4
+                     DD __imp__htons@4, __imp__ioctlsocket@12, __imp__listen@8, __imp__ntohl@4
+                     DD __imp__ntohs@4, __imp__recv@16, __imp__recvfrom@24, __imp__select@20
+                     DD __imp__send@16, __imp__sendto@24, __imp__setsockopt@20, __imp__shutdown@8
+                     DD __imp__socket@12, __imp__gethostbyaddr@12, __imp__gethostbyname@4, __imp__getprotobyname@4
+                     DD __imp__getprotobynumber@4, __imp__gethostname@8, __imp__WSAGetLastError@0, __imp__WSAStartup@8
+                     DD __imp__WSACleanup@0, __imp____WSAFDIsSet@8
+_ntcompat_lazy_binders DD ntc_bind_0, ntc_bind_1, ntc_bind_2, ntc_bind_3
+                       DD ntc_bind_4, ntc_bind_5, ntc_bind_6, ntc_bind_7
+                       DD ntc_bind_8, ntc_bind_9, ntc_bind_10, ntc_bind_11
+                       DD ntc_bind_12, ntc_bind_13, ntc_bind_14, ntc_bind_15
+                       DD ntc_bind_16, ntc_bind_17, ntc_bind_18, ntc_bind_19
+                       DD ntc_bind_20, ntc_bind_21, ntc_bind_22, ntc_bind_23
+                       DD ntc_bind_24, ntc_bind_25, ntc_bind_26, ntc_bind_27
+                       DD ntc_bind_28, ntc_bind_29
+_ntcompat_lazy_fail_stubs DD ntc_fail_0, ntc_fail_1, ntc_fail_2, ntc_fail_3
+                          DD ntc_fail_4, ntc_fail_5, ntc_fail_6, ntc_fail_7
+                          DD ntc_fail_8, ntc_fail_9, ntc_fail_10, ntc_fail_11
+                          DD ntc_fail_12, ntc_fail_13, ntc_fail_14, ntc_fail_15
+                          DD ntc_fail_16, ntc_fail_17, ntc_fail_18, ntc_fail_19
+                          DD ntc_fail_20, ntc_fail_21, ntc_fail_22, ntc_fail_23
+                          DD ntc_fail_24, ntc_fail_25, ntc_fail_26, ntc_fail_27
+                          DD ntc_fail_28, ntc_fail_29
 
         .code
 ; accept: ws2_32.dll | wsock32.dll
