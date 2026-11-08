@@ -33,8 +33,9 @@ static const lazy_info kLazy[] = {
 };
 #define LAZY_COUNT (sizeof(kLazy) / sizeof(kLazy[0]) - 1)
 
-/* Defined in imp_lazy_x86.asm, in table order. */
-extern void *volatile ntcompat_lazy_slots[];
+/* Defined in imp_lazy_x86.asm, in table order: the address of each import
+ * slot, and the address of each binder and failure stub. */
+extern void *volatile *const ntcompat_lazy_slots[];
 extern void *const ntcompat_lazy_binders[];
 extern void *const ntcompat_lazy_fail_stubs[];
 
@@ -89,7 +90,7 @@ void *__stdcall ntcompat_lazy_resolve(DWORD index)
     DWORD saved = GetLastError();  /* the caller's error state is not ours to change */
     FARPROC f = index < LAZY_COUNT ? find(kLazy[index].dlls, kLazy[index].name) : NULL;
     target = f ? (void *)f : ntcompat_lazy_fail_stubs[index];
-    ntcompat_lazy_slots[index] = target;  /* an aligned 32-bit store: atomic */
+    *ntcompat_lazy_slots[index] = target;  /* an aligned 32-bit store: atomic */
     SetLastError(saved);
     return target;
 }
@@ -105,7 +106,7 @@ int ntcompat_lazy_status(const char *function)
     unsigned i;
     for (i = 0; i < LAZY_COUNT; i++) {
         if (lstrcmpA(kLazy[i].name, function) == 0) {
-            void *slot = ntcompat_lazy_slots[i];
+            void *slot = *ntcompat_lazy_slots[i];
             if (slot == ntcompat_lazy_binders[i])
                 return NTCOMPAT_THUNK_UNUSED;
             return slot == ntcompat_lazy_fail_stubs[i] ? NTCOMPAT_THUNK_FALLBACK

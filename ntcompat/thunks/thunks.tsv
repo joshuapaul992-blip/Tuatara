@@ -33,3 +33,41 @@ kernel32    InitializeSListHead                     4     5.1    noyy  fallback:
 kernel32    InterlockedFlushSList                   4     5.1    noyy  fallback: own SList on cmpxchg8b
 kernel32    FindFirstFileExW                        24    4.0    noyy  fallback FindFirstFileW (basic name search only)
 advapi32    SystemFunction036                       8     5.1    noyy  RtlGenRandom; fallback CryptGenRandom (NT 4.0, 2000), then ntcompat's own pool (crypto/entropy.c)
+# Needed by NSPR/NSS (M1).
+kernel32    GetFileAttributesExA                    12    4.0    core  fallback FindFirstFileA (or GetFileAttributesA for drive roots)
+kernel32    GetFileAttributesExW                    12    4.0    core  fallback FindFirstFileW (or GetFileAttributesW for drive roots)
+kernel32    TryEnterCriticalSection                 4     4.0    core  fallback: cmpxchg on the critical section's LockCount, as NT 4.0 does
+kernel32    GlobalMemoryStatusEx                    4     5.0    core  fallback GlobalMemoryStatus
+kernel32    SystemTimeToTzSpecificLocalTime         12    4.0    core  NT 3.51 availability unconfirmed; fallback via FileTimeToLocalFileTime (current bias)
+# Winsock: ws2_32 on NT 4.0 and later, Winsock 1.1's wsock32 on NT 3.51 (same
+# functions; ws2_32.lib imports them by the ordinals wsock32 also uses).
+ws2_32|wsock32 accept                               12    4.0    lazy  fail=0xFFFFFFFF err=10091
+ws2_32|wsock32 bind                                 12    4.0    lazy  fail=-1 err=10091
+ws2_32|wsock32 closesocket                          4     4.0    lazy  fail=-1 err=10091
+ws2_32|wsock32 connect                              12    4.0    lazy  fail=-1 err=10091
+ws2_32|wsock32 getpeername                          12    4.0    lazy  fail=-1 err=10091
+ws2_32|wsock32 getsockname                          12    4.0    lazy  fail=-1 err=10091
+ws2_32|wsock32 getsockopt                           20    4.0    lazy  fail=-1 err=10091
+ws2_32|wsock32 htonl                                4     4.0    lazy  fail=0 err=10091
+ws2_32|wsock32 htons                                4     4.0    lazy  fail=0 err=10091
+ws2_32|wsock32 ioctlsocket                          12    4.0    lazy  fail=-1 err=10091
+ws2_32|wsock32 listen                               8     4.0    lazy  fail=-1 err=10091
+ws2_32|wsock32 ntohl                                4     4.0    lazy  fail=0 err=10091
+ws2_32|wsock32 ntohs                                4     4.0    lazy  fail=0 err=10091
+ws2_32|wsock32 recv                                 16    4.0    lazy  fail=-1 err=10091
+ws2_32|wsock32 recvfrom                             24    4.0    lazy  fail=-1 err=10091
+ws2_32|wsock32 select                               20    4.0    lazy  fail=-1 err=10091
+ws2_32|wsock32 send                                 16    4.0    lazy  fail=-1 err=10091
+ws2_32|wsock32 sendto                               24    4.0    lazy  fail=-1 err=10091
+ws2_32|wsock32 setsockopt                           20    4.0    lazy  fail=-1 err=10091
+ws2_32|wsock32 shutdown                             8     4.0    lazy  fail=-1 err=10091
+ws2_32|wsock32 socket                               12    4.0    lazy  fail=0xFFFFFFFF err=10091
+ws2_32|wsock32 gethostbyaddr                        12    4.0    lazy  fail=0 err=10091
+ws2_32|wsock32 gethostbyname                        4     4.0    lazy  fail=0 err=10091
+ws2_32|wsock32 getprotobyname                       4     4.0    lazy  fail=0 err=10091
+ws2_32|wsock32 getprotobynumber                     4     4.0    lazy  fail=0 err=10091
+ws2_32|wsock32 gethostname                          8     4.0    lazy  fail=-1 err=10091
+ws2_32|wsock32 WSAGetLastError                      0     4.0    lazy  fail=10091 err=10091
+ws2_32|wsock32 WSAStartup                           8     4.0    lazy  fail=10091 err=10091
+ws2_32|wsock32 WSACleanup                           0     4.0    lazy  fail=-1 err=10091
+ws2_32|wsock32 __WSAFDIsSet                         8     4.0    lazy  fail=0 err=10091

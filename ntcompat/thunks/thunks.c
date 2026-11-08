@@ -352,3 +352,188 @@ BOOLEAN WINAPI ntcompat_SystemFunction036(PVOID buffer, ULONG length)
         return real(buffer, length);
     return ntcompat_random(buffer, length) ? TRUE : FALSE;
 }
+
+/* ---- needed by NSPR/NSS ---- */
+
+static int has_wildcard(const char *a, const WCHAR *w)
+{
+    if (a) {
+        for (; *a; a++)
+            if (*a == '*' || *a == '?')
+                return 1;
+    } else {
+        for (; *w; w++)
+            if (*w == L'*' || *w == L'?')
+                return 1;
+    }
+    return 0;
+}
+
+static void zero(void *p, size_t n)
+{
+    volatile unsigned char *b = (volatile unsigned char *)p;
+    while (n--)
+        *b++ = 0;
+}
+
+/* GetFileExInfoStandard (level 0) is the only level. FindFirstFile fills
+ * the same fields; drive roots ("C:\") aren't found by it, so those fall
+ * back to GetFileAttributes alone. */
+BOOL WINAPI ntcompat_GetFileAttributesExA(LPCSTR name, int level, LPVOID info)
+{
+    typedef BOOL(WINAPI * fn_t)(LPCSTR, int, LPVOID);
+    fn_t real = (fn_t)real_fn(T_GetFileAttributesExA);
+    WIN32_FILE_ATTRIBUTE_DATA *d = (WIN32_FILE_ATTRIBUTE_DATA *)info;
+    WIN32_FIND_DATAA fd;
+    HANDLE h;
+    if (real)
+        return real(name, level, info);
+    if (level != 0 || !name || !info) {
+        SetLastError(ERROR_INVALID_PARAMETER);
+        return FALSE;
+    }
+    if (has_wildcard(name, NULL)) {
+        SetLastError(ERROR_INVALID_NAME);
+        return FALSE;
+    }
+    h = FindFirstFileA(name, &fd);
+    if (h == INVALID_HANDLE_VALUE) {
+        DWORD attrs = GetFileAttributesA(name);
+        if (attrs == 0xFFFFFFFF)
+            return FALSE;
+        zero(d, sizeof(*d));
+        d->dwFileAttributes = attrs;
+        return TRUE;
+    }
+    FindClose(h);
+    d->dwFileAttributes = fd.dwFileAttributes;
+    d->ftCreationTime = fd.ftCreationTime;
+    d->ftLastAccessTime = fd.ftLastAccessTime;
+    d->ftLastWriteTime = fd.ftLastWriteTime;
+    d->nFileSizeHigh = fd.nFileSizeHigh;
+    d->nFileSizeLow = fd.nFileSizeLow;
+    return TRUE;
+}
+
+BOOL WINAPI ntcompat_GetFileAttributesExW(LPCWSTR name, int level, LPVOID info)
+{
+    typedef BOOL(WINAPI * fn_t)(LPCWSTR, int, LPVOID);
+    fn_t real = (fn_t)real_fn(T_GetFileAttributesExW);
+    WIN32_FILE_ATTRIBUTE_DATA *d = (WIN32_FILE_ATTRIBUTE_DATA *)info;
+    WIN32_FIND_DATAW fd;
+    HANDLE h;
+    if (real)
+        return real(name, level, info);
+    if (level != 0 || !name || !info) {
+        SetLastError(ERROR_INVALID_PARAMETER);
+        return FALSE;
+    }
+    if (has_wildcard(NULL, name)) {
+        SetLastError(ERROR_INVALID_NAME);
+        return FALSE;
+    }
+    h = FindFirstFileW(name, &fd);
+    if (h == INVALID_HANDLE_VALUE) {
+        DWORD attrs = GetFileAttributesW(name);
+        if (attrs == 0xFFFFFFFF)
+            return FALSE;
+        zero(d, sizeof(*d));
+        d->dwFileAttributes = attrs;
+        return TRUE;
+    }
+    FindClose(h);
+    d->dwFileAttributes = fd.dwFileAttributes;
+    d->ftCreationTime = fd.ftCreationTime;
+    d->ftLastAccessTime = fd.ftLastAccessTime;
+    d->ftLastWriteTime = fd.ftLastWriteTime;
+    d->nFileSizeHigh = fd.nFileSizeHigh;
+    d->nFileSizeLow = fd.nFileSizeLow;
+    return TRUE;
+}
+
+/* The fallback works on the critical section's fields with the classic
+ * semantics (LockCount -1 = free), which NT 3.51 has and Windows Server 2003
+ * SP1 and later don't. So it must never run on a system that has the real
+ * function, not even under NTCOMPAT_EMULATE. */
+BOOL WINAPI ntcompat_TryEnterCriticalSection(LPCRITICAL_SECTION cs)
+{
+    typedef BOOL(WINAPI * fn_t)(LPCRITICAL_SECTION);
+    static fn_t real;
+    static int looked;
+    HANDLE me;
+    if (!looked) {
+        real = (fn_t)GetProcAddress(GetModuleHandleA("kernel32.dll"), "TryEnterCriticalSection");
+        looked = 1;
+    }
+    if (real) {
+        g_real[T_TryEnterCriticalSection] = (FARPROC)real;  /* for ntcompat_thunk_status */
+        return real(cs);
+    }
+    g_real[T_TryEnterCriticalSection] = NULL;
+    me = (HANDLE)(UINT_PTR)GetCurrentThreadId();
+#if defined(_MSC_VER)
+    if (_InterlockedCompareExchange(&cs->LockCount, 0, -1) == -1) {
+#else
+    if (__sync_val_compare_and_swap(&cs->LockCount, -1, 0) == -1) {
+#endif
+        cs->OwningThread = me;
+        cs->RecursionCount = 1;
+        return TRUE;
+    }
+    if (cs->OwningThread == me) {
+        InterlockedIncrement(&cs->LockCount);
+        cs->RecursionCount++;
+        return TRUE;
+    }
+    return FALSE;
+}
+
+BOOL WINAPI ntcompat_GlobalMemoryStatusEx(LPMEMORYSTATUSEX m)
+{
+    typedef BOOL(WINAPI * fn_t)(LPMEMORYSTATUSEX);
+    fn_t real = (fn_t)real_fn(T_GlobalMemoryStatusEx);
+    MEMORYSTATUS s;
+    if (real)
+        return real(m);
+    if (!m || m->dwLength != sizeof(*m)) {
+        SetLastError(ERROR_INVALID_PARAMETER);
+        return FALSE;
+    }
+    s.dwLength = sizeof(s);
+    GlobalMemoryStatus(&s);
+    m->dwMemoryLoad = s.dwMemoryLoad;
+    m->ullTotalPhys = s.dwTotalPhys;
+    m->ullAvailPhys = s.dwAvailPhys;
+    m->ullTotalPageFile = s.dwTotalPageFile;
+    m->ullAvailPageFile = s.dwAvailPageFile;
+    m->ullTotalVirtual = s.dwTotalVirtual;
+    m->ullAvailVirtual = s.dwAvailVirtual;
+    m->ullAvailExtendedVirtual = 0;
+    return TRUE;
+}
+
+/* Fallback: the time zone's standard bias only (no daylight-saving rules),
+ * or for the current zone the system's current bias. */
+BOOL WINAPI ntcompat_SystemTimeToTzSpecificLocalTime(LPTIME_ZONE_INFORMATION tz,
+                                                     LPSYSTEMTIME utc, LPSYSTEMTIME local)
+{
+    typedef BOOL(WINAPI * fn_t)(LPTIME_ZONE_INFORMATION, LPSYSTEMTIME, LPSYSTEMTIME);
+    fn_t real = (fn_t)real_fn(T_SystemTimeToTzSpecificLocalTime);
+    FILETIME ft, lft;
+    if (real)
+        return real(tz, utc, local);
+    if (!SystemTimeToFileTime(utc, &ft))
+        return FALSE;
+    if (tz) {
+        ULARGE_INTEGER t;
+        LONGLONG bias = (LONGLONG)(tz->Bias + tz->StandardBias) * 60 * 10000000;
+        t.LowPart = ft.dwLowDateTime;
+        t.HighPart = ft.dwHighDateTime;
+        t.QuadPart -= (ULONGLONG)bias;  /* local = UTC - bias */
+        lft.dwLowDateTime = t.LowPart;
+        lft.dwHighDateTime = t.HighPart;
+    } else if (!FileTimeToLocalFileTime(&ft, &lft)) {
+        return FALSE;
+    }
+    return FileTimeToSystemTime(&lft, local);
+}

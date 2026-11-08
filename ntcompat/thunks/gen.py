@@ -138,16 +138,14 @@ def render_lazy_asm(rows):
         name = f"{r['func']}@{r['args']}"
         out.append(f"        PUBLIC __imp__{name}, _{name}")
     out += ["",
-            "; The pointers dllimport callers read, in table order. Each starts at its",
-            "; binder and is replaced by the resolved function (or its failure stub).",
+            "; The pointers dllimport callers read. Each starts at its binder and is",
+            "; replaced by the resolved function (or its failure stub).",
             "        .data"]
     for i, r in enumerate(rows):
-        name = f"{r['func']}@{r['args']}"
-        label = "_ntcompat_lazy_slots " if i == 0 else ""
-        out.append(f"{label}__imp__{name} DD ntc_bind_{i}")
-    if not rows:
-        out.append("_ntcompat_lazy_slots DD 0")
-    out += ["", "; Where each binder and failure stub is, for lazy.c."]
+        out.append(f"__imp__{r['func']}@{r['args']} DD ntc_bind_{i}")
+    out += ["", "; Where each slot, binder and failure stub is, for lazy.c."]
+    out.append("_ntcompat_lazy_slots " + ("DD " + ", ".join(f"__imp__{r['func']}@{r['args']}" for r in rows)
+                                          if rows else "DD 0"))
     out.append("_ntcompat_lazy_binders " + ("DD " + ", ".join(f"ntc_bind_{i}" for i in range(len(rows)))
                                             if rows else "DD 0"))
     out.append("_ntcompat_lazy_fail_stubs " + ("DD " + ", ".join(f"ntc_fail_{i}" for i in range(len(rows)))

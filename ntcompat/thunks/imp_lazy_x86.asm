@@ -11,16 +11,496 @@
         EXTERN _ntcompat_lazy_resolve@4:PROC
         EXTERN _ntcompat_lazy_failed@4:PROC
         PUBLIC _ntcompat_lazy_slots, _ntcompat_lazy_fail_stubs, _ntcompat_lazy_binders
+        PUBLIC __imp__accept@12, _accept@12
+        PUBLIC __imp__bind@12, _bind@12
+        PUBLIC __imp__closesocket@4, _closesocket@4
+        PUBLIC __imp__connect@12, _connect@12
+        PUBLIC __imp__getpeername@12, _getpeername@12
+        PUBLIC __imp__getsockname@12, _getsockname@12
+        PUBLIC __imp__getsockopt@20, _getsockopt@20
+        PUBLIC __imp__htonl@4, _htonl@4
+        PUBLIC __imp__htons@4, _htons@4
+        PUBLIC __imp__ioctlsocket@12, _ioctlsocket@12
+        PUBLIC __imp__listen@8, _listen@8
+        PUBLIC __imp__ntohl@4, _ntohl@4
+        PUBLIC __imp__ntohs@4, _ntohs@4
+        PUBLIC __imp__recv@16, _recv@16
+        PUBLIC __imp__recvfrom@24, _recvfrom@24
+        PUBLIC __imp__select@20, _select@20
+        PUBLIC __imp__send@16, _send@16
+        PUBLIC __imp__sendto@24, _sendto@24
+        PUBLIC __imp__setsockopt@20, _setsockopt@20
+        PUBLIC __imp__shutdown@8, _shutdown@8
+        PUBLIC __imp__socket@12, _socket@12
+        PUBLIC __imp__gethostbyaddr@12, _gethostbyaddr@12
+        PUBLIC __imp__gethostbyname@4, _gethostbyname@4
+        PUBLIC __imp__getprotobyname@4, _getprotobyname@4
+        PUBLIC __imp__getprotobynumber@4, _getprotobynumber@4
+        PUBLIC __imp__gethostname@8, _gethostname@8
+        PUBLIC __imp__WSAGetLastError@0, _WSAGetLastError@0
+        PUBLIC __imp__WSAStartup@8, _WSAStartup@8
+        PUBLIC __imp__WSACleanup@0, _WSACleanup@0
+        PUBLIC __imp____WSAFDIsSet@8, ___WSAFDIsSet@8
 
-; The pointers dllimport callers read, in table order. Each starts at its
-; binder and is replaced by the resolved function (or its failure stub).
+; The pointers dllimport callers read. Each starts at its binder and is
+; replaced by the resolved function (or its failure stub).
         .data
-_ntcompat_lazy_slots DD 0
+__imp__accept@12 DD ntc_bind_0
+__imp__bind@12 DD ntc_bind_1
+__imp__closesocket@4 DD ntc_bind_2
+__imp__connect@12 DD ntc_bind_3
+__imp__getpeername@12 DD ntc_bind_4
+__imp__getsockname@12 DD ntc_bind_5
+__imp__getsockopt@20 DD ntc_bind_6
+__imp__htonl@4 DD ntc_bind_7
+__imp__htons@4 DD ntc_bind_8
+__imp__ioctlsocket@12 DD ntc_bind_9
+__imp__listen@8 DD ntc_bind_10
+__imp__ntohl@4 DD ntc_bind_11
+__imp__ntohs@4 DD ntc_bind_12
+__imp__recv@16 DD ntc_bind_13
+__imp__recvfrom@24 DD ntc_bind_14
+__imp__select@20 DD ntc_bind_15
+__imp__send@16 DD ntc_bind_16
+__imp__sendto@24 DD ntc_bind_17
+__imp__setsockopt@20 DD ntc_bind_18
+__imp__shutdown@8 DD ntc_bind_19
+__imp__socket@12 DD ntc_bind_20
+__imp__gethostbyaddr@12 DD ntc_bind_21
+__imp__gethostbyname@4 DD ntc_bind_22
+__imp__getprotobyname@4 DD ntc_bind_23
+__imp__getprotobynumber@4 DD ntc_bind_24
+__imp__gethostname@8 DD ntc_bind_25
+__imp__WSAGetLastError@0 DD ntc_bind_26
+__imp__WSAStartup@8 DD ntc_bind_27
+__imp__WSACleanup@0 DD ntc_bind_28
+__imp____WSAFDIsSet@8 DD ntc_bind_29
 
-; Where each binder and failure stub is, for lazy.c.
-_ntcompat_lazy_binders DD 0
-_ntcompat_lazy_fail_stubs DD 0
+; Where each slot, binder and failure stub is, for lazy.c.
+_ntcompat_lazy_slots DD __imp__accept@12, __imp__bind@12, __imp__closesocket@4, __imp__connect@12, __imp__getpeername@12, __imp__getsockname@12, __imp__getsockopt@20, __imp__htonl@4, __imp__htons@4, __imp__ioctlsocket@12, __imp__listen@8, __imp__ntohl@4, __imp__ntohs@4, __imp__recv@16, __imp__recvfrom@24, __imp__select@20, __imp__send@16, __imp__sendto@24, __imp__setsockopt@20, __imp__shutdown@8, __imp__socket@12, __imp__gethostbyaddr@12, __imp__gethostbyname@4, __imp__getprotobyname@4, __imp__getprotobynumber@4, __imp__gethostname@8, __imp__WSAGetLastError@0, __imp__WSAStartup@8, __imp__WSACleanup@0, __imp____WSAFDIsSet@8
+_ntcompat_lazy_binders DD ntc_bind_0, ntc_bind_1, ntc_bind_2, ntc_bind_3, ntc_bind_4, ntc_bind_5, ntc_bind_6, ntc_bind_7, ntc_bind_8, ntc_bind_9, ntc_bind_10, ntc_bind_11, ntc_bind_12, ntc_bind_13, ntc_bind_14, ntc_bind_15, ntc_bind_16, ntc_bind_17, ntc_bind_18, ntc_bind_19, ntc_bind_20, ntc_bind_21, ntc_bind_22, ntc_bind_23, ntc_bind_24, ntc_bind_25, ntc_bind_26, ntc_bind_27, ntc_bind_28, ntc_bind_29
+_ntcompat_lazy_fail_stubs DD ntc_fail_0, ntc_fail_1, ntc_fail_2, ntc_fail_3, ntc_fail_4, ntc_fail_5, ntc_fail_6, ntc_fail_7, ntc_fail_8, ntc_fail_9, ntc_fail_10, ntc_fail_11, ntc_fail_12, ntc_fail_13, ntc_fail_14, ntc_fail_15, ntc_fail_16, ntc_fail_17, ntc_fail_18, ntc_fail_19, ntc_fail_20, ntc_fail_21, ntc_fail_22, ntc_fail_23, ntc_fail_24, ntc_fail_25, ntc_fail_26, ntc_fail_27, ntc_fail_28, ntc_fail_29
 
         .code
+; accept: ws2_32.dll | wsock32.dll
+ntc_bind_0 PROC
+        push 0
+        call _ntcompat_lazy_resolve@4   ; returns the target, patches the slot
+        jmp eax                          ; arguments and return address untouched
+ntc_bind_0 ENDP
+ntc_fail_0 PROC
+        push 0
+        call _ntcompat_lazy_failed@4    ; sets the error, returns the value
+        ret 12
+ntc_fail_0 ENDP
+_accept@12 PROC
+        jmp DWORD PTR [__imp__accept@12]
+_accept@12 ENDP
+; bind: ws2_32.dll | wsock32.dll
+ntc_bind_1 PROC
+        push 1
+        call _ntcompat_lazy_resolve@4   ; returns the target, patches the slot
+        jmp eax                          ; arguments and return address untouched
+ntc_bind_1 ENDP
+ntc_fail_1 PROC
+        push 1
+        call _ntcompat_lazy_failed@4    ; sets the error, returns the value
+        ret 12
+ntc_fail_1 ENDP
+_bind@12 PROC
+        jmp DWORD PTR [__imp__bind@12]
+_bind@12 ENDP
+; closesocket: ws2_32.dll | wsock32.dll
+ntc_bind_2 PROC
+        push 2
+        call _ntcompat_lazy_resolve@4   ; returns the target, patches the slot
+        jmp eax                          ; arguments and return address untouched
+ntc_bind_2 ENDP
+ntc_fail_2 PROC
+        push 2
+        call _ntcompat_lazy_failed@4    ; sets the error, returns the value
+        ret 4
+ntc_fail_2 ENDP
+_closesocket@4 PROC
+        jmp DWORD PTR [__imp__closesocket@4]
+_closesocket@4 ENDP
+; connect: ws2_32.dll | wsock32.dll
+ntc_bind_3 PROC
+        push 3
+        call _ntcompat_lazy_resolve@4   ; returns the target, patches the slot
+        jmp eax                          ; arguments and return address untouched
+ntc_bind_3 ENDP
+ntc_fail_3 PROC
+        push 3
+        call _ntcompat_lazy_failed@4    ; sets the error, returns the value
+        ret 12
+ntc_fail_3 ENDP
+_connect@12 PROC
+        jmp DWORD PTR [__imp__connect@12]
+_connect@12 ENDP
+; getpeername: ws2_32.dll | wsock32.dll
+ntc_bind_4 PROC
+        push 4
+        call _ntcompat_lazy_resolve@4   ; returns the target, patches the slot
+        jmp eax                          ; arguments and return address untouched
+ntc_bind_4 ENDP
+ntc_fail_4 PROC
+        push 4
+        call _ntcompat_lazy_failed@4    ; sets the error, returns the value
+        ret 12
+ntc_fail_4 ENDP
+_getpeername@12 PROC
+        jmp DWORD PTR [__imp__getpeername@12]
+_getpeername@12 ENDP
+; getsockname: ws2_32.dll | wsock32.dll
+ntc_bind_5 PROC
+        push 5
+        call _ntcompat_lazy_resolve@4   ; returns the target, patches the slot
+        jmp eax                          ; arguments and return address untouched
+ntc_bind_5 ENDP
+ntc_fail_5 PROC
+        push 5
+        call _ntcompat_lazy_failed@4    ; sets the error, returns the value
+        ret 12
+ntc_fail_5 ENDP
+_getsockname@12 PROC
+        jmp DWORD PTR [__imp__getsockname@12]
+_getsockname@12 ENDP
+; getsockopt: ws2_32.dll | wsock32.dll
+ntc_bind_6 PROC
+        push 6
+        call _ntcompat_lazy_resolve@4   ; returns the target, patches the slot
+        jmp eax                          ; arguments and return address untouched
+ntc_bind_6 ENDP
+ntc_fail_6 PROC
+        push 6
+        call _ntcompat_lazy_failed@4    ; sets the error, returns the value
+        ret 20
+ntc_fail_6 ENDP
+_getsockopt@20 PROC
+        jmp DWORD PTR [__imp__getsockopt@20]
+_getsockopt@20 ENDP
+; htonl: ws2_32.dll | wsock32.dll
+ntc_bind_7 PROC
+        push 7
+        call _ntcompat_lazy_resolve@4   ; returns the target, patches the slot
+        jmp eax                          ; arguments and return address untouched
+ntc_bind_7 ENDP
+ntc_fail_7 PROC
+        push 7
+        call _ntcompat_lazy_failed@4    ; sets the error, returns the value
+        ret 4
+ntc_fail_7 ENDP
+_htonl@4 PROC
+        jmp DWORD PTR [__imp__htonl@4]
+_htonl@4 ENDP
+; htons: ws2_32.dll | wsock32.dll
+ntc_bind_8 PROC
+        push 8
+        call _ntcompat_lazy_resolve@4   ; returns the target, patches the slot
+        jmp eax                          ; arguments and return address untouched
+ntc_bind_8 ENDP
+ntc_fail_8 PROC
+        push 8
+        call _ntcompat_lazy_failed@4    ; sets the error, returns the value
+        ret 4
+ntc_fail_8 ENDP
+_htons@4 PROC
+        jmp DWORD PTR [__imp__htons@4]
+_htons@4 ENDP
+; ioctlsocket: ws2_32.dll | wsock32.dll
+ntc_bind_9 PROC
+        push 9
+        call _ntcompat_lazy_resolve@4   ; returns the target, patches the slot
+        jmp eax                          ; arguments and return address untouched
+ntc_bind_9 ENDP
+ntc_fail_9 PROC
+        push 9
+        call _ntcompat_lazy_failed@4    ; sets the error, returns the value
+        ret 12
+ntc_fail_9 ENDP
+_ioctlsocket@12 PROC
+        jmp DWORD PTR [__imp__ioctlsocket@12]
+_ioctlsocket@12 ENDP
+; listen: ws2_32.dll | wsock32.dll
+ntc_bind_10 PROC
+        push 10
+        call _ntcompat_lazy_resolve@4   ; returns the target, patches the slot
+        jmp eax                          ; arguments and return address untouched
+ntc_bind_10 ENDP
+ntc_fail_10 PROC
+        push 10
+        call _ntcompat_lazy_failed@4    ; sets the error, returns the value
+        ret 8
+ntc_fail_10 ENDP
+_listen@8 PROC
+        jmp DWORD PTR [__imp__listen@8]
+_listen@8 ENDP
+; ntohl: ws2_32.dll | wsock32.dll
+ntc_bind_11 PROC
+        push 11
+        call _ntcompat_lazy_resolve@4   ; returns the target, patches the slot
+        jmp eax                          ; arguments and return address untouched
+ntc_bind_11 ENDP
+ntc_fail_11 PROC
+        push 11
+        call _ntcompat_lazy_failed@4    ; sets the error, returns the value
+        ret 4
+ntc_fail_11 ENDP
+_ntohl@4 PROC
+        jmp DWORD PTR [__imp__ntohl@4]
+_ntohl@4 ENDP
+; ntohs: ws2_32.dll | wsock32.dll
+ntc_bind_12 PROC
+        push 12
+        call _ntcompat_lazy_resolve@4   ; returns the target, patches the slot
+        jmp eax                          ; arguments and return address untouched
+ntc_bind_12 ENDP
+ntc_fail_12 PROC
+        push 12
+        call _ntcompat_lazy_failed@4    ; sets the error, returns the value
+        ret 4
+ntc_fail_12 ENDP
+_ntohs@4 PROC
+        jmp DWORD PTR [__imp__ntohs@4]
+_ntohs@4 ENDP
+; recv: ws2_32.dll | wsock32.dll
+ntc_bind_13 PROC
+        push 13
+        call _ntcompat_lazy_resolve@4   ; returns the target, patches the slot
+        jmp eax                          ; arguments and return address untouched
+ntc_bind_13 ENDP
+ntc_fail_13 PROC
+        push 13
+        call _ntcompat_lazy_failed@4    ; sets the error, returns the value
+        ret 16
+ntc_fail_13 ENDP
+_recv@16 PROC
+        jmp DWORD PTR [__imp__recv@16]
+_recv@16 ENDP
+; recvfrom: ws2_32.dll | wsock32.dll
+ntc_bind_14 PROC
+        push 14
+        call _ntcompat_lazy_resolve@4   ; returns the target, patches the slot
+        jmp eax                          ; arguments and return address untouched
+ntc_bind_14 ENDP
+ntc_fail_14 PROC
+        push 14
+        call _ntcompat_lazy_failed@4    ; sets the error, returns the value
+        ret 24
+ntc_fail_14 ENDP
+_recvfrom@24 PROC
+        jmp DWORD PTR [__imp__recvfrom@24]
+_recvfrom@24 ENDP
+; select: ws2_32.dll | wsock32.dll
+ntc_bind_15 PROC
+        push 15
+        call _ntcompat_lazy_resolve@4   ; returns the target, patches the slot
+        jmp eax                          ; arguments and return address untouched
+ntc_bind_15 ENDP
+ntc_fail_15 PROC
+        push 15
+        call _ntcompat_lazy_failed@4    ; sets the error, returns the value
+        ret 20
+ntc_fail_15 ENDP
+_select@20 PROC
+        jmp DWORD PTR [__imp__select@20]
+_select@20 ENDP
+; send: ws2_32.dll | wsock32.dll
+ntc_bind_16 PROC
+        push 16
+        call _ntcompat_lazy_resolve@4   ; returns the target, patches the slot
+        jmp eax                          ; arguments and return address untouched
+ntc_bind_16 ENDP
+ntc_fail_16 PROC
+        push 16
+        call _ntcompat_lazy_failed@4    ; sets the error, returns the value
+        ret 16
+ntc_fail_16 ENDP
+_send@16 PROC
+        jmp DWORD PTR [__imp__send@16]
+_send@16 ENDP
+; sendto: ws2_32.dll | wsock32.dll
+ntc_bind_17 PROC
+        push 17
+        call _ntcompat_lazy_resolve@4   ; returns the target, patches the slot
+        jmp eax                          ; arguments and return address untouched
+ntc_bind_17 ENDP
+ntc_fail_17 PROC
+        push 17
+        call _ntcompat_lazy_failed@4    ; sets the error, returns the value
+        ret 24
+ntc_fail_17 ENDP
+_sendto@24 PROC
+        jmp DWORD PTR [__imp__sendto@24]
+_sendto@24 ENDP
+; setsockopt: ws2_32.dll | wsock32.dll
+ntc_bind_18 PROC
+        push 18
+        call _ntcompat_lazy_resolve@4   ; returns the target, patches the slot
+        jmp eax                          ; arguments and return address untouched
+ntc_bind_18 ENDP
+ntc_fail_18 PROC
+        push 18
+        call _ntcompat_lazy_failed@4    ; sets the error, returns the value
+        ret 20
+ntc_fail_18 ENDP
+_setsockopt@20 PROC
+        jmp DWORD PTR [__imp__setsockopt@20]
+_setsockopt@20 ENDP
+; shutdown: ws2_32.dll | wsock32.dll
+ntc_bind_19 PROC
+        push 19
+        call _ntcompat_lazy_resolve@4   ; returns the target, patches the slot
+        jmp eax                          ; arguments and return address untouched
+ntc_bind_19 ENDP
+ntc_fail_19 PROC
+        push 19
+        call _ntcompat_lazy_failed@4    ; sets the error, returns the value
+        ret 8
+ntc_fail_19 ENDP
+_shutdown@8 PROC
+        jmp DWORD PTR [__imp__shutdown@8]
+_shutdown@8 ENDP
+; socket: ws2_32.dll | wsock32.dll
+ntc_bind_20 PROC
+        push 20
+        call _ntcompat_lazy_resolve@4   ; returns the target, patches the slot
+        jmp eax                          ; arguments and return address untouched
+ntc_bind_20 ENDP
+ntc_fail_20 PROC
+        push 20
+        call _ntcompat_lazy_failed@4    ; sets the error, returns the value
+        ret 12
+ntc_fail_20 ENDP
+_socket@12 PROC
+        jmp DWORD PTR [__imp__socket@12]
+_socket@12 ENDP
+; gethostbyaddr: ws2_32.dll | wsock32.dll
+ntc_bind_21 PROC
+        push 21
+        call _ntcompat_lazy_resolve@4   ; returns the target, patches the slot
+        jmp eax                          ; arguments and return address untouched
+ntc_bind_21 ENDP
+ntc_fail_21 PROC
+        push 21
+        call _ntcompat_lazy_failed@4    ; sets the error, returns the value
+        ret 12
+ntc_fail_21 ENDP
+_gethostbyaddr@12 PROC
+        jmp DWORD PTR [__imp__gethostbyaddr@12]
+_gethostbyaddr@12 ENDP
+; gethostbyname: ws2_32.dll | wsock32.dll
+ntc_bind_22 PROC
+        push 22
+        call _ntcompat_lazy_resolve@4   ; returns the target, patches the slot
+        jmp eax                          ; arguments and return address untouched
+ntc_bind_22 ENDP
+ntc_fail_22 PROC
+        push 22
+        call _ntcompat_lazy_failed@4    ; sets the error, returns the value
+        ret 4
+ntc_fail_22 ENDP
+_gethostbyname@4 PROC
+        jmp DWORD PTR [__imp__gethostbyname@4]
+_gethostbyname@4 ENDP
+; getprotobyname: ws2_32.dll | wsock32.dll
+ntc_bind_23 PROC
+        push 23
+        call _ntcompat_lazy_resolve@4   ; returns the target, patches the slot
+        jmp eax                          ; arguments and return address untouched
+ntc_bind_23 ENDP
+ntc_fail_23 PROC
+        push 23
+        call _ntcompat_lazy_failed@4    ; sets the error, returns the value
+        ret 4
+ntc_fail_23 ENDP
+_getprotobyname@4 PROC
+        jmp DWORD PTR [__imp__getprotobyname@4]
+_getprotobyname@4 ENDP
+; getprotobynumber: ws2_32.dll | wsock32.dll
+ntc_bind_24 PROC
+        push 24
+        call _ntcompat_lazy_resolve@4   ; returns the target, patches the slot
+        jmp eax                          ; arguments and return address untouched
+ntc_bind_24 ENDP
+ntc_fail_24 PROC
+        push 24
+        call _ntcompat_lazy_failed@4    ; sets the error, returns the value
+        ret 4
+ntc_fail_24 ENDP
+_getprotobynumber@4 PROC
+        jmp DWORD PTR [__imp__getprotobynumber@4]
+_getprotobynumber@4 ENDP
+; gethostname: ws2_32.dll | wsock32.dll
+ntc_bind_25 PROC
+        push 25
+        call _ntcompat_lazy_resolve@4   ; returns the target, patches the slot
+        jmp eax                          ; arguments and return address untouched
+ntc_bind_25 ENDP
+ntc_fail_25 PROC
+        push 25
+        call _ntcompat_lazy_failed@4    ; sets the error, returns the value
+        ret 8
+ntc_fail_25 ENDP
+_gethostname@8 PROC
+        jmp DWORD PTR [__imp__gethostname@8]
+_gethostname@8 ENDP
+; WSAGetLastError: ws2_32.dll | wsock32.dll
+ntc_bind_26 PROC
+        push 26
+        call _ntcompat_lazy_resolve@4   ; returns the target, patches the slot
+        jmp eax                          ; arguments and return address untouched
+ntc_bind_26 ENDP
+ntc_fail_26 PROC
+        push 26
+        call _ntcompat_lazy_failed@4    ; sets the error, returns the value
+        ret
+ntc_fail_26 ENDP
+_WSAGetLastError@0 PROC
+        jmp DWORD PTR [__imp__WSAGetLastError@0]
+_WSAGetLastError@0 ENDP
+; WSAStartup: ws2_32.dll | wsock32.dll
+ntc_bind_27 PROC
+        push 27
+        call _ntcompat_lazy_resolve@4   ; returns the target, patches the slot
+        jmp eax                          ; arguments and return address untouched
+ntc_bind_27 ENDP
+ntc_fail_27 PROC
+        push 27
+        call _ntcompat_lazy_failed@4    ; sets the error, returns the value
+        ret 8
+ntc_fail_27 ENDP
+_WSAStartup@8 PROC
+        jmp DWORD PTR [__imp__WSAStartup@8]
+_WSAStartup@8 ENDP
+; WSACleanup: ws2_32.dll | wsock32.dll
+ntc_bind_28 PROC
+        push 28
+        call _ntcompat_lazy_resolve@4   ; returns the target, patches the slot
+        jmp eax                          ; arguments and return address untouched
+ntc_bind_28 ENDP
+ntc_fail_28 PROC
+        push 28
+        call _ntcompat_lazy_failed@4    ; sets the error, returns the value
+        ret
+ntc_fail_28 ENDP
+_WSACleanup@0 PROC
+        jmp DWORD PTR [__imp__WSACleanup@0]
+_WSACleanup@0 ENDP
+; __WSAFDIsSet: ws2_32.dll | wsock32.dll
+ntc_bind_29 PROC
+        push 29
+        call _ntcompat_lazy_resolve@4   ; returns the target, patches the slot
+        jmp eax                          ; arguments and return address untouched
+ntc_bind_29 ENDP
+ntc_fail_29 PROC
+        push 29
+        call _ntcompat_lazy_failed@4    ; sets the error, returns the value
+        ret 8
+ntc_fail_29 ENDP
+___WSAFDIsSet@8 PROC
+        jmp DWORD PTR [__imp____WSAFDIsSet@8]
+___WSAFDIsSet@8 ENDP
 
         END

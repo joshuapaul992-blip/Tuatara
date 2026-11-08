@@ -21,6 +21,16 @@
         PUBLIC __imp__AreFileApisANSI@0, _AreFileApisANSI@0
         EXTERN _ntcompat_CoTaskMemAlloc@4:PROC
         PUBLIC __imp__CoTaskMemAlloc@4, _CoTaskMemAlloc@4
+        EXTERN _ntcompat_GetFileAttributesExA@12:PROC
+        PUBLIC __imp__GetFileAttributesExA@12, _GetFileAttributesExA@12
+        EXTERN _ntcompat_GetFileAttributesExW@12:PROC
+        PUBLIC __imp__GetFileAttributesExW@12, _GetFileAttributesExW@12
+        EXTERN _ntcompat_TryEnterCriticalSection@4:PROC
+        PUBLIC __imp__TryEnterCriticalSection@4, _TryEnterCriticalSection@4
+        EXTERN _ntcompat_GlobalMemoryStatusEx@4:PROC
+        PUBLIC __imp__GlobalMemoryStatusEx@4, _GlobalMemoryStatusEx@4
+        EXTERN _ntcompat_SystemTimeToTzSpecificLocalTime@12:PROC
+        PUBLIC __imp__SystemTimeToTzSpecificLocalTime@12, _SystemTimeToTzSpecificLocalTime@12
 
 ; The pointers that dllimport callers read.
         .data
@@ -31,6 +41,11 @@ __imp__IsDebuggerPresent@0 DD _ntcompat_IsDebuggerPresent@0
 __imp__IsProcessorFeaturePresent@4 DD _ntcompat_IsProcessorFeaturePresent@4
 __imp__AreFileApisANSI@0 DD _ntcompat_AreFileApisANSI@0
 __imp__CoTaskMemAlloc@4 DD _ntcompat_CoTaskMemAlloc@4
+__imp__GetFileAttributesExA@12 DD _ntcompat_GetFileAttributesExA@12
+__imp__GetFileAttributesExW@12 DD _ntcompat_GetFileAttributesExW@12
+__imp__TryEnterCriticalSection@4 DD _ntcompat_TryEnterCriticalSection@4
+__imp__GlobalMemoryStatusEx@4 DD _ntcompat_GlobalMemoryStatusEx@4
+__imp__SystemTimeToTzSpecificLocalTime@12 DD _ntcompat_SystemTimeToTzSpecificLocalTime@12
 
 ; Direct-call entry points, as an import library would provide. Without
 ; them a direct call pulls in the import library's member, which
@@ -57,5 +72,20 @@ _AreFileApisANSI@0 ENDP
 _CoTaskMemAlloc@4 PROC
         jmp DWORD PTR [__imp__CoTaskMemAlloc@4]
 _CoTaskMemAlloc@4 ENDP
+_GetFileAttributesExA@12 PROC
+        jmp DWORD PTR [__imp__GetFileAttributesExA@12]
+_GetFileAttributesExA@12 ENDP
+_GetFileAttributesExW@12 PROC
+        jmp DWORD PTR [__imp__GetFileAttributesExW@12]
+_GetFileAttributesExW@12 ENDP
+_TryEnterCriticalSection@4 PROC
+        jmp DWORD PTR [__imp__TryEnterCriticalSection@4]
+_TryEnterCriticalSection@4 ENDP
+_GlobalMemoryStatusEx@4 PROC
+        jmp DWORD PTR [__imp__GlobalMemoryStatusEx@4]
+_GlobalMemoryStatusEx@4 ENDP
+_SystemTimeToTzSpecificLocalTime@12 PROC
+        jmp DWORD PTR [__imp__SystemTimeToTzSpecificLocalTime@12]
+_SystemTimeToTzSpecificLocalTime@12 ENDP
 
         END
