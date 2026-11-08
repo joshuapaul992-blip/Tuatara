@@ -1,0 +1,16 @@
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+# Imports apiaudit should accept although a target OS lacks them, because
+# the code resolves them at runtime and has a fallback. Every entry needs a
+# reason; point `fallback` at the code that handles the missing case.
+# See tuatara/tools/apiaudit/README.md for the format.
+#
+# Example:
+#
+# [[allow]]
+# dll = "kernel32.dll"
+# function = "GetTickCount64"
+# reason = "Looked up at runtime; falls back to GetTickCount with wrap tracking"
+# fallback = "ntcompat/kernel32/tickcount.c"
