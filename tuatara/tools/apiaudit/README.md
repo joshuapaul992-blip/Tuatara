@@ -12,11 +12,24 @@ Linux CI as well as on Windows.
 
 All commands run from the repository root.
 
-### Build a baseline from install media
+### Build a baseline on the machine itself (easiest)
 
-A baseline is the list of exports of each system DLL on one OS. It's made from
-your own install media, and only export names and ordinals are committed —
-never Microsoft binaries.
+A baseline is the list of exports of each system DLL on one OS. Only export
+names, ordinals and versions are committed — never Microsoft binaries.
+
+On a real (or virtual) machine running the target system, run
+`NTEXPORT.EXE` from the spike build ([`tuatara/spike/`](../../spike/README.md)).
+It needs no runtime DLLs and writes `EXPORTS.TXT` (well under a floppy's
+worth). Copy that file back and convert it:
+
+```bash
+python3 tuatara/tools/apiaudit baseline --from-dump EXPORTS.TXT --out tuatara/baselines
+```
+
+The OS id (`nt351-sp5`, `nt4-sp6a`, `w2k-sp4`) is worked out from the version
+and service pack in the dump; pass `--os-id` and `--name` for anything else.
+
+### Build a baseline from install media
 
 1. **Extract the media.** Copy the `I386` folder off the CD (mount the ISO, or
    `7z x`). For a service pack, extract it into a folder without installing
@@ -35,7 +48,7 @@ never Microsoft binaries.
 
    ```bash
    python3 tuatara/tools/apiaudit baseline /tmp/nt4-sp6a-dlls \
-       --out tuatara/baselines/nt4-sp6a --os-id nt4-sp6a \
+       --out tuatara/baselines --os-id nt4-sp6a \
        --name "Windows NT 4.0 SP6a" --version 4.0 --build 1381
    ```
 

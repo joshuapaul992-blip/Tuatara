@@ -208,6 +208,48 @@ def parse(path: str, data: Optional[bytes] = None) -> PEImage:
     return img
 
 
+def pe_checksum(data: bytes, checksum_offset: int) -> int:
+    """The PE image checksum (as computed by CheckSumMappedFile)."""
+    total = 0
+    n = len(data)
+    padded = data + (b"\0" if n % 2 else b"")
+    for (word,) in struct.iter_unpack("<H", padded):
+        total += word
+    # The checksum field itself counts as zero.
+    lo, hi = struct.unpack_from("<HH", data, checksum_offset)
+    total -= lo + hi
+    while total >> 16:
+        total = (total & 0xFFFF) + (total >> 16)
+    return (total + n) & 0xFFFFFFFF
+
+
+def set_versions(path, os_version=None, subsystem_version=None):
+    """Rewrite the OS and/or subsystem version fields of a PE file in place,
+    and update its checksum. Returns the old (os, subsystem) versions."""
+    with open(path, "rb") as f:
+        data = bytearray(f.read())
+    r = _Reader(bytes(data), path)
+    if data[:2] != b"MZ":
+        raise PEError("no MZ signature")
+    (e_lfanew,) = r.unpack("<I", 0x3C)
+    if r.unpack("<4s", e_lfanew)[0] != b"PE\0\0":
+        raise PEError("no PE signature")
+    opt = e_lfanew + 24
+    (magic,) = r.unpack("<H", opt)
+    if magic not in (0x10B, 0x20B):
+        raise PEError(f"unknown optional header magic 0x{magic:x}")
+    old_os = r.unpack("<HH", opt + 40)
+    old_ss = r.unpack("<HH", opt + 48)
+    if os_version is not None:
+        struct.pack_into("<HH", data, opt + 40, *os_version)
+    if subsystem_version is not None:
+        struct.pack_into("<HH", data, opt + 48, *subsystem_version)
+    struct.pack_into("<I", data, opt + 64, pe_checksum(bytes(data), opt + 64))
+    with open(path, "wb") as f:
+        f.write(data)
+    return tuple(old_os), tuple(old_ss)
+
+
 def _read_thunks(r, rva, plus):
     """Yield the thunk values in an import name table, up to the null entry."""
     fmt, step = ("<Q", 8) if plus else ("<I", 4)

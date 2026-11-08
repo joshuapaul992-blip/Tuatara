@@ -1,0 +1,132 @@
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+# M0 toolchain spike: build hello-nt and ntexports with both candidate
+# toolchains, record what they import, smoke-test them on the runner, and
+# publish the binaries for testing on NT 3.51 / NT 4.0 / Windows 2000.
+
+name: Tuatara toolchain spike
+
+on:
+  push:
+    branches: [tuatara]
+    paths: ["tuatara/spike/**", "ntcompat/**", "tuatara/tools/apiaudit/**",
+            ".github/workflows/tuatara-spike.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  YYTHUNKS_VERSION: 1.2.3
+  YYTHUNKS_NUPKG_SHA256: B6BD2E5CB854C4C822B1CEEC46A14F8E9AF7DC017D0D24E142EC2B6183D95685
+
+jobs:
+  spike:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            tuatara
+            ntcompat
+          sparse-checkout-cone-mode: true
+
+      - name: Get YY-Thunks (NuGet package, pinned by hash)
+        shell: pwsh
+        run: |
+          $url = "https://api.nuget.org/v3-flatcontainer/yy-thunks/$env:YYTHUNKS_VERSION/yy-thunks.$env:YYTHUNKS_VERSION.nupkg"
+          Invoke-WebRequest $url -OutFile yy.zip
+          $hash = (Get-FileHash yy.zip -Algorithm SHA256).Hash
+          if ($hash -ne $env:YYTHUNKS_NUPKG_SHA256) { throw "YY-Thunks package hash mismatch: $hash" }
+          Expand-Archive yy.zip -DestinationPath "$env:RUNNER_TEMP\yy"
+          $obj = "$env:RUNNER_TEMP\yy\build\native\objs\x86\YY_Thunks_for_Win2K.obj"
+          if (-not (Test-Path $obj)) { throw "no YY_Thunks_for_Win2K.obj in the package" }
+          "YYTHUNKS_OBJ=$obj" >> $env:GITHUB_ENV
+
+      - name: Get YY-Thunks import libraries (for lld-link)
+        continue-on-error: true
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "v$env:YYTHUNKS_VERSION" -R Chuyu-Team/YY-Thunks --json assets -q '.assets[].name'
+          gh release download "v$env:YYTHUNKS_VERSION" -R Chuyu-Team/YY-Thunks -p '*Lib*' -D "$env:RUNNER_TEMP\yylib"
+          Get-ChildItem "$env:RUNNER_TEMP\yylib\*.zip" | ForEach-Object {
+            Expand-Archive $_.FullName -DestinationPath "$env:RUNNER_TEMP\yylib\x"
+          }
+          $dirs = Get-ChildItem "$env:RUNNER_TEMP\yylib\x" -Recurse -Directory |
+                  Where-Object { $_.Name -eq 'x86' }
+          $dirs | ForEach-Object { $_.FullName }
+          $w2k = $dirs | Where-Object { $_.FullName -match '\\5\.0[.\d]*\\x86$' } | Select-Object -First 1
+          if ($w2k) { "YYTHUNKS_LIB=$($w2k.FullName)" >> $env:GITHUB_ENV; "Using $($w2k.FullName)" }
+          else { "No Windows 2000 library directory found; candidate B links without YY-Thunks" }
+
+      - uses: ilammy/msvc-dev-cmd@v1.13.0
+        with:
+          arch: x86
+
+      - name: "Candidate A: MSVC cl + link + set-version"
+        id: msvc
+        continue-on-error: true
+        shell: cmd
+        run: |
+          cl 2>&1 | findstr /i "version"
+          call tuatara\spike\build.cmd msvc dist\A-MSVC
+
+      - name: "Candidate B: clang-cl + lld-link"
+        id: clangcl
+        continue-on-error: true
+        shell: cmd
+        run: |
+          clang-cl --version
+          call tuatara\spike\build.cmd clangcl dist\B-CLANG
+
+      - name: Record imports and PE headers
+        if: always()
+        shell: bash
+        run: |
+          for d in dist/*/; do
+            for f in "$d"*.EXE "$d"*.DLL; do
+              [ -f "$f" ] && python tuatara/tools/apiaudit dump "$f"
+            done > "${d}IMPORTS.TXT" 2>&1 || true
+            echo "== $d"; cat "${d}IMPORTS.TXT"
+            if ls tuatara/baselines/*/os.json >/dev/null 2>&1; then
+              python tuatara/tools/apiaudit check --baselines tuatara/baselines \
+                --allowlist tuatara/apiaudit-allowlist.toml "$d" > "${d}AUDIT.TXT" || true
+              cat "${d}AUDIT.TXT"
+            fi
+          done
+
+      - name: Smoke test on the runner (Windows Server 2022)
+        if: always()
+        shell: cmd
+        run: |
+          for /d %%d in (dist\*) do (
+            echo ===== %%d
+            pushd %%d
+            if exist HELLO-NT.EXE (HELLO-NT.EXE /quick /nogui & call echo exit code %%ERRORLEVEL%%)
+            if exist NTEXPORT.EXE (NTEXPORT.EXE & findstr /b "os dll" EXPORTS.TXT | find /c "dll")
+            del EXPORTS.TXT HELLO-NT.TXT 2>nul
+            popd
+          )
+
+      - name: Add instructions
+        if: always()
+        shell: bash
+        run: cp tuatara/spike/RUNME.TXT dist/ 2>/dev/null || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tuatara-spike
+          path: dist/
+          if-no-files-found: warn
+
+      - name: Fail if a candidate failed to build
+        if: steps.msvc.outcome != 'success' || steps.clangcl.outcome != 'success'
+        shell: bash
+        run: |
+          echo "msvc: ${{ steps.msvc.outcome }}, clang-cl: ${{ steps.clangcl.outcome }}"
+          exit 1

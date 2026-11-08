@@ -4,6 +4,7 @@
 
 import argparse
 import json
+import os
 import sys
 
 from . import audit, baseline, media, pe
@@ -40,10 +41,34 @@ def cmd_media(args):
 
 
 def cmd_baseline(args):
-    n = baseline.write_baseline(args.dll_dir, args.out, args.os_id, args.name,
+    if args.from_dump:
+        try:
+            baseline.write_baseline_from_dump(args.from_dump, args.out, args.os_id, args.name)
+        except ValueError as e:
+            print(f"apiaudit: {e}", file=sys.stderr)
+            return 2
+        return 0
+    if not (args.dll_dir and args.os_id and args.name and args.version):
+        print("apiaudit: give DLL_DIR with --os-id, --name and --version, "
+              "or --from-dump FILE", file=sys.stderr)
+        return 2
+    out = os.path.join(args.out, args.os_id)
+    n = baseline.write_baseline(args.dll_dir, out, args.os_id, args.name,
                                 args.version, args.build)
-    print(f"wrote {n} DLL baselines to {args.out}")
+    print(f"wrote {n} DLL baselines to {out}")
     return 0
+
+
+def cmd_set_version(args):
+    for path in args.files:
+        old_os, old_ss = pe.set_versions(path, args.os, args.subsystem)
+        print(f"{path}: os %d.%02d -> %s, subsystem %d.%02d -> %s" % (
+            old_os + (_fmt(args.os),) + old_ss + (_fmt(args.subsystem),)))
+    return 0
+
+
+def _fmt(v):
+    return "unchanged" if v is None else "%d.%02d" % v
 
 
 def cmd_dump(args):
@@ -94,14 +119,24 @@ def build_parser():
     m.add_argument("--dlls", help="comma-separated DLL base names (default: built-in list)")
     m.set_defaults(func=cmd_media)
 
-    b = sub.add_parser("baseline", help="write a baseline from a directory of system DLLs")
-    b.add_argument("dll_dir")
-    b.add_argument("--out", required=True, help="e.g. tuatara/baselines/nt4-sp6a")
-    b.add_argument("--os-id", required=True, help="e.g. nt4-sp6a")
-    b.add_argument("--name", required=True, help='e.g. "Windows NT 4.0 SP6a"')
-    b.add_argument("--version", required=True, type=_version, help="e.g. 4.0 or 3.51")
+    b = sub.add_parser("baseline",
+                       help="write a baseline from an ntexports dump or a directory of system DLLs")
+    b.add_argument("dll_dir", nargs="?", help="directory of expanded system DLLs")
+    b.add_argument("--from-dump", metavar="FILE",
+                   help="EXPORTS.TXT written by ntexports.exe on the target machine")
+    b.add_argument("--out", required=True, help="baselines root, e.g. tuatara/baselines")
+    b.add_argument("--os-id", help="e.g. nt4-sp6a (guessed from a dump when omitted)")
+    b.add_argument("--name", help='e.g. "Windows NT 4.0 SP6a"')
+    b.add_argument("--version", type=_version, help="e.g. 4.0 or 3.51")
     b.add_argument("--build", type=int, help="e.g. 1381")
     b.set_defaults(func=cmd_baseline)
+
+    s = sub.add_parser("set-version",
+                       help="rewrite the PE OS/subsystem version fields (MSVC can't write < 5.01)")
+    s.add_argument("files", nargs="+")
+    s.add_argument("--os", type=_version, help="e.g. 3.10")
+    s.add_argument("--subsystem", type=_version, help="e.g. 3.10")
+    s.set_defaults(func=cmd_set_version)
 
     d = sub.add_parser("dump", help="print the headers, imports and exports of one file")
     d.add_argument("file")

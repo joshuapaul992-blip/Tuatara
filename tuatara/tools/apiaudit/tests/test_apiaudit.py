@@ -183,6 +183,86 @@ class Auditing(unittest.TestCase):
         self.assertEqual({f.check for f in findings}, {"subsystem-version", "os-version"})
 
 
+SAMPLE_DUMP = (
+    "TUATARA-NTEXPORTS\t1\n"
+    "os\t4\t0\t1381\tService Pack 6\n"
+    "dll\tkernel32.dll\t4.0.1381.300\t14c\n"
+    "e\t1\tAddAtomA\t\n"
+    "e\t2\tHeapAlloc\tNTDLL.RtlAllocateHeap\n"
+    "e\t7\t\t\n"
+    "dll\tntdll.dll\t4.0.1381.300\t14c\n"
+    "e\t1\tRtlAllocateHeap\t\n"
+    "missing\tmsimg32.dll\n"
+    "end\n")
+
+
+class Dumps(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp)
+
+    def write(self, text):
+        path = os.path.join(self.tmp, "EXPORTS.TXT")
+        with open(path, "w", newline="") as f:
+            f.write(text)
+        return path
+
+    def test_from_dump_guesses_os_and_round_trips(self):
+        os_id = baseline.write_baseline_from_dump(self.write(SAMPLE_DUMP), self.tmp,
+                                                  log=lambda *_: None)
+        self.assertEqual(os_id, "nt4-sp6a")
+        b = baseline.load_os(os.path.join(self.tmp, "nt4-sp6a"))
+        self.assertEqual((b.version, b.build, b.name), ((4, 0), 1381, "Windows NT 4.0 SP6a"))
+        k32 = b.find_dll("kernel32.dll")
+        self.assertEqual(k32.by_name["HeapAlloc"], "NTDLL.RtlAllocateHeap")
+        self.assertIn(7, k32.by_ordinal)
+        self.assertEqual(k32.file_version, "4.0.1381.300")
+
+    def test_dump_with_crlf_line_endings(self):
+        path = self.write(SAMPLE_DUMP.replace("\n", "\r\n"))
+        self.assertEqual(baseline.write_baseline_from_dump(path, self.tmp, log=lambda *_: None),
+                         "nt4-sp6a")
+
+    def test_truncated_dump_is_rejected(self):
+        with self.assertRaises(ValueError):
+            baseline.parse_dump(self.write(SAMPLE_DUMP.replace("end\n", "")))
+
+    def test_unknown_os_needs_explicit_id(self):
+        text = SAMPLE_DUMP.replace("os\t4\t0\t1381\tService Pack 6", "os\t5\t1\t2600\tService Pack 3")
+        with self.assertRaises(ValueError):
+            baseline.write_baseline_from_dump(self.write(text), self.tmp, log=lambda *_: None)
+        self.assertEqual(baseline.write_baseline_from_dump(
+            self.write(text), self.tmp, os_id="xp-sp3", os_name="Windows XP SP3",
+            log=lambda *_: None), "xp-sp3")
+
+    def test_not_a_dump(self):
+        with self.assertRaises(ValueError):
+            baseline.parse_dump(self.write("hello\n"))
+
+
+@needs_fixture
+class SetVersion(unittest.TestCase):
+    def test_rewrites_versions_and_checksum(self):
+        tmp = tempfile.mkdtemp()
+        try:
+            path = os.path.join(tmp, "new.exe")
+            shutil.copy(dist("new.exe"), path)
+            old_os, old_ss = pe.set_versions(path, (3, 10), (3, 10))
+            self.assertEqual((old_os, old_ss), ((6, 0), (6, 0)))
+            img = pe.parse(path)
+            self.assertEqual((img.os_version, img.subsystem_version), ((3, 10), (3, 10)))
+            with open(path, "rb") as f:
+                data = f.read()
+            opt = int.from_bytes(data[0x3C:0x40], "little") + 24
+            stored = int.from_bytes(data[opt + 64:opt + 68], "little")
+            self.assertNotEqual(stored, 0)
+            self.assertEqual(stored, pe.pe_checksum(data, opt + 64))
+        finally:
+            shutil.rmtree(tmp)
+
+
 def szdd_compress_literals(data: bytes) -> bytes:
     """Encode *data* as SZDD using only literals (valid, just not smaller)."""
     out = bytearray(media.SZDD_MAGIC + b"A_" + len(data).to_bytes(4, "little"))
