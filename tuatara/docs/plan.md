@@ -1,0 +1,81 @@
+# Tuatara plan
+
+Tuatara is a Basilisk-style browser for Windows NT 3.51, NT 4.0 and
+Windows 2000, built on the Quentix engine (UXP via roytam1's `ia32` branch).
+The model is Supermium, which keeps current Chromium running on Windows XP and
+Vista and brings back classic UI options. Tuatara does the same for UXP, and
+goes further back.
+
+Decisions are recorded in [decisions/](decisions/). This file is the living
+overview; update it when a milestone's scope changes.
+
+## Pillars
+
+1. **Track upstream quickly.** Merge roytam1's `ia32` and release within days,
+   weekly when upstream moves.
+2. **One build for every Windows.** One i686 binary runs on NT 3.51 through
+   Windows 11 and picks code paths at runtime.
+3. **Basilisk-style UI with classic presets.** Australis by default, plus
+   Classic Tabs, Compact, System Colors and Dark.
+4. **Site compatibility.** A Firefox-compatible user agent by default, with
+   per-site overrides.
+5. **Extensions.** XUL extensions; WebExtensions as inherited from roytam1's
+   tree (to be decided).
+6. **Honest about limits.** An "About this machine" page explains what works
+   on this machine and why.
+
+## How it works
+
+- **No system changes.** No extended kernels and no replaced system DLLs.
+  Missing APIs are filled in by `ntcompat`, a statically linked layer that
+  looks functions up at runtime and falls back to its own implementation.
+- **The API audit is the guardrail.** `apiaudit` checks every built binary
+  against export lists taken from the real systems. CI fails on any import a
+  target OS lacks unless it is allowlisted with a fallback.
+- **CPU features are checked against the OS.** One SEH-guarded probe decides
+  whether SSE may be used; every library's CPU detection goes through it.
+  CPUID alone is not enough on NT 4.0.
+- **Software graphics.** Skia/Cairo with the basic compositor, drawn to the
+  window with `StretchDIBits`. No Direct2D, DirectWrite or Direct3D.
+- **Fonts.** GDI on Windows 2000; FreeType with bundled fonts on NT 4.0 and
+  NT 3.51, which lack OpenType support and `AddFontMemResourceEx`.
+- **Toolchain.** MSVC (as upstream expects) or clang-cl, with `/arch:IA32`,
+  `/Zc:threadSafeInit-`, no implicit TLS in DLLs, a static CRT plus YY-Thunks
+  at its Windows 2000 level, and PE subsystem version 3.10. M0 decides which.
+
+## Milestones
+
+| | Milestone | Exit criteria |
+|---|---|---|
+| **M0** | Toolchain spike and guardrails | `tuatara` branch and docs; baselines for the three systems; `apiaudit` in CI with a first gap report against roytam1's XP build; `hello-nt` passes on all three systems with and without SSE; toolchain decided |
+| **M1** | Foundations on all three systems | NSS completes a TLS 1.3 handshake; the JS shell passes jit-tests in interpreter mode; ICU and the allocator self-test |
+| **M2** | Headless engine on Windows 2000 | `libxul` loads; xpcshell tests run |
+| **M3** | First browser on Windows 2000 | Front end in `application/tuatara/`, rebranded; classic CSS; software compositing; GDI fonts; WinMM audio; HTTPS sites load |
+| **M3.5** | Front-end speed check | Windows 2000 with the JIT off, as a stand-in for NT 4.0; pick the default UI preset per OS |
+| **M4** | Windows NT 4.0 | FreeType backend and font pack; opaque panels; multi-monitor stubs; `getaddrinfo` fallback |
+| **M5** | Windows NT 3.51 (stretch) | Winsock 1.1 shim; entropy without CryptoAPI; OLE fallbacks; portable profile |
+| **M6** | Release pipeline | Weekly builds; one installer for NT 3.51 to Windows 11; About This Machine; low-memory defaults |
+
+## M0 in detail
+
+| Step | Status |
+|---|---|
+| M0.1 `tuatara` branch, README, docs, decision records | Done |
+| M0.3 `apiaudit`: imports, delay imports, ordinals, forwarders, TLS, header versions, allowlist | Done |
+| M0.2 Baselines for `nt351-sp5`, `nt4-sp6a`, `w2k-sp4` | Tooling done; needs the install media |
+| First gap report against roytam1's XP build of Serpent | Needs the baselines |
+| M0.4 Test lab: QEMU (`pentium2`, `pentium3`, an SSE2 model), FAT transfer disk, auto-run | To do |
+| M0.5 Toolchain spike and `hello-nt` | To do |
+| M0.6 CI: `apiaudit` tests on Linux; Windows build job | `apiaudit` tests done |
+
+## Risks
+
+| Risk | Mitigation |
+|---|---|
+| Upstream starts using newer Win32 APIs or C++ features | `apiaudit` in CI on every merge; small, runtime-gated patches |
+| The NT 3.51 loader rejects modern PE files | Tested first, in the M0 spike |
+| JavaScript speed without the JIT | Documented; Classic Tabs preset as the fallback default on NT 4.0 and 3.51 |
+| RAM | Low-memory defaults; Large Address Aware for NT 4.0 with `/3GB` |
+| Font backend port | Reuse UXP's FreeType font list (the Android path) |
+| Slow testing on emulators | Capability-emulation mode on modern Windows for most work; VMs to confirm |
+| Old, unpatched host OS | Clear security notice; recommend use behind NAT |

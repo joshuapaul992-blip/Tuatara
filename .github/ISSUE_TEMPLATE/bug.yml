@@ -1,0 +1,48 @@
+name: Bug report
+description: Something doesn't work in Tuatara
+labels: [bug]
+body:
+  - type: dropdown
+    id: os
+    attributes:
+      label: Windows version
+      options:
+        - Windows NT 3.51
+        - Windows NT 4.0
+        - Windows 2000
+        - Windows XP or later
+    validations:
+      required: true
+  - type: input
+    id: sp
+    attributes:
+      label: Service pack and updates
+      description: For example "SP6a, no IE" or "SP4 + Update Rollup 1"
+    validations:
+      required: true
+  - type: input
+    id: cpu
+    attributes:
+      label: CPU and RAM
+      description: For example "Pentium III 800 MHz, 384 MB", or the emulator and CPU model
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Tuatara version
+      description: From the About dialog, including the Quentix version
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead. Include the URL if it's about a website.
+    validations:
+      required: true
+  - type: textarea
+    id: machine
+    attributes:
+      label: About this machine
+      description: Paste the contents of the "About this machine" page, if the browser starts.
