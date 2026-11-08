@@ -7,6 +7,7 @@
  * loaded at runtime, the case where implicit TLS breaks before Vista. */
 
 #include <windows.h>
+#include <intrin.h>
 #include <string>
 
 static int g_ctor_value;
@@ -36,8 +37,19 @@ static DWORD WINAPI tls_thread(LPVOID)
     return t_value == 9 ? 0 : 3;
 }
 
+/* The C runtime's TLS index for this DLL; the loader (or YY-Thunks) sets it. */
+extern "C" unsigned long _tls_index;
+
 extern "C" __declspec(dllexport) int __cdecl hellodll_tls_check(void)
 {
+#if defined(_M_IX86)
+    /* Check that this thread has a TLS block for us before touching
+     * thread_local: without one the access would fault. TEB+0x2C is
+     * ThreadLocalStoragePointer on every 32-bit NT. */
+    void **blocks = (void **)__readfsdword(0x2C);
+    if (!blocks || !blocks[_tls_index])
+        return 7;
+#endif
     if (t_value != 7)
         return 1;  /* this thread's copy isn't initialised */
     t_value = 8;

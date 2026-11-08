@@ -142,6 +142,31 @@ exit code is always reported (NT 3.51's `cmd` has no `%ERRORLEVEL%`), and
 adds `THRTEST.EXE`, which runs each way of starting a thread in its own
 process with no C runtime at all.
 
+### Result: build `e4b3d92`, variant C, on NT 3.51 SP5 (2 CPUs, WINSIMD 1.2)
+
+**Passing a real thread-ID pointer fixed the thread crash**: NT 3.51's
+`CreateThread` doesn't accept NULL there. Variant C then runs almost the whole
+suite on real NT 3.51:
+
+- CRT, C++17, x87, threads (all four start and finish with exact counts),
+  TLS API, events, `cmpxchg8b`, `LoadLibrary`, files, timers, memory and a
+  GDI window (`StretchDIBits`) all work; the ntcompat thunks take their NT 3.51
+  fallbacks.
+- **WINSIMD 1.2 is installed** (GuardFlags 0x7): the SIMD policy allows SSE and
+  AVX, and the XMM stress test passes on dual-CPU NT 3.51, which WINSIMD lists
+  as untested.
+- The `threads` FAIL was a test bug: with `bWaitAll`, NT 3.51 returns a
+  nonzero `WAIT_OBJECT_0 + n`, which is documented as success.
+- Winsock: NT 3.51 has only `wsock32`, as expected; the loopback test failed
+  at a step the test didn't name (it now reports the step and error).
+- `dlltls` killed the process without a result: variant C has no YY-Thunks, so
+  nothing sets up `thread_local` in a runtime-loaded DLL. The test now checks
+  for a TLS block first and reports instead.
+
+Rule for Tuatara code: **never pass NULL for `CreateThread`'s thread-ID
+pointer**, and don't rely on implicit TLS (`thread_local`,
+`__declspec(thread)`) in DLLs loaded at runtime unless something provides it.
+
 **Current lean: candidate A** (MSVC, as upstream builds, with
 `apiaudit set-version`). It is confirmed only after the runs on the real
 machines; B stays in the spike to compare.

@@ -300,8 +300,12 @@ static void test_threads()
         tls_ok = tls_ok && code == 0;
         CloseHandle(h);
     }
-    CHECK("threads", w == WAIT_OBJECT_0 && g_counter_cs == 400000 && g_counter_atomic == 400000,
-          "4 threads: critical section %ld, interlocked %ld", g_counter_cs, (long)g_counter_atomic);
+    /* With bWaitAll, any value from WAIT_OBJECT_0 to WAIT_OBJECT_0 + 3 means
+     * all were signalled (NT 3.51 returns a nonzero index). */
+    bool waited = w < WAIT_OBJECT_0 + 4;
+    CHECK("threads", waited && g_counter_cs == 400000 && g_counter_atomic == 400000,
+          "4 threads: critical section %ld, interlocked %ld, wait returned %lu", g_counter_cs,
+          (long)g_counter_atomic, w);
     CHECK("tls-api", tls_ok, "TlsAlloc/TlsSetValue per thread");
     TlsFree(g_tls_index);
     DeleteCriticalSection(&g_cs);
@@ -347,10 +351,11 @@ static void test_dll_tls()
         "per-thread copies work", "this thread's copy is not initialised",
         "a new thread did not get the initial value", "a thread could not write its copy",
         "CreateThread failed", "thread exit code unavailable",
-        "another thread changed this thread's copy"};
+        "another thread changed this thread's copy",
+        "no TLS block for this DLL: the system doesn't set up implicit TLS here"};
     int r = fn ? fn() : -1;
     CHECK("dll-tls", r == 0, "thread_local in a LoadLibrary'd DLL: %s",
-          r >= 0 && r <= 6 ? why[r] : "export missing");
+          r >= 0 && r <= 7 ? why[r] : "export missing");
     FreeLibrary(h);
 }
 
@@ -480,22 +485,36 @@ static void test_winsock()
         report("SKIP", "winsock", "WSAStartup failed (TCP/IP not installed?)");
         return;
     }
+    typedef int(WINAPI * lasterror_t)(void);
+    auto p_lasterror = (lasterror_t)GetProcAddress(ws, "WSAGetLastError");
     const sock_t bad = (sock_t)~0u;
     sockaddr_in4 addr = {2 /* AF_INET */, 0, 0x0100007F /* 127.0.0.1 */, {0}};
     int len = sizeof(addr);
-    sock_t l = p_socket(2, 1, 6);  // AF_INET, SOCK_STREAM, IPPROTO_TCP
-    bool ok = l != bad && p_bind(l, &addr, sizeof(addr)) == 0 && p_listen(l, 1) == 0 &&
-              p_getsockname(l, &addr, &len) == 0;
-    sock_t c = ok ? p_socket(2, 1, 6) : bad;
-    ok = ok && c != bad && p_connect(c, &addr, sizeof(addr)) == 0;
-    sock_t a = ok ? p_accept(l, nullptr, nullptr) : bad;
+    const char *failed = nullptr;  // the first step that failed
+    int err = 0;
+    sock_t l = bad, c = bad, a = bad;
     char buf[8] = {0};
-    ok = ok && a != bad && p_send(c, "ping", 4, 0) == 4 && p_recv(a, buf, 4, 0) == 4 &&
-         !memcmp(buf, "ping", 4);
+#define WS_STEP(name, cond) \
+    if (!failed && !(cond)) { failed = name; err = p_lasterror ? p_lasterror() : -1; }
+    WS_STEP("socket", (l = p_socket(2, 1, 6)) != bad)  // AF_INET, SOCK_STREAM, IPPROTO_TCP
+    WS_STEP("bind", p_bind(l, &addr, sizeof(addr)) == 0)
+    WS_STEP("listen", p_listen(l, 1) == 0)
+    WS_STEP("getsockname", p_getsockname(l, &addr, &len) == 0)
+    WS_STEP("socket (client)", (c = p_socket(2, 1, 6)) != bad)
+    WS_STEP("connect", p_connect(c, &addr, sizeof(addr)) == 0)
+    WS_STEP("accept", (a = p_accept(l, nullptr, nullptr)) != bad)
+    WS_STEP("send", p_send(c, "ping", 4, 0) == 4)
+    WS_STEP("recv", p_recv(a, buf, 4, 0) == 4 && !memcmp(buf, "ping", 4))
+#undef WS_STEP
     if (a != bad) p_close(a);
     if (c != bad) p_close(c);
     if (l != bad) p_close(l);
-    CHECK("winsock", ok, "%s: TCP loopback connect, send, receive", which);
+    if (failed && !strcmp(failed, "socket") && (err == 10047 || err == 10043))
+        report("SKIP", "winsock", "%s: no TCP/IP (socket error %d)", which, err);
+    else if (failed)
+        report("FAIL", "winsock", "%s: %s failed, Winsock error %d", which, failed, err);
+    else
+        report("PASS", "winsock", "%s: TCP loopback connect, send, receive", which);
 }
 
 /* ---- SIMD policy and an XMM preservation stress test ---- */
@@ -728,8 +747,10 @@ static int run_supervised()
     CloseHandle(pi.hProcess);
 
     const char *what = code == 0 ? "all checks passed"
+                     : code > 0x100 && code < 0x200 ? "some checks failed (low byte: how many)"
                      : code == 0xC0DE ? "the crash handler ended it (see the CRASH line)"
-                     : code < 0x100 ? "that many checks failed"
+                     : code == 3 ? "abort() in the C runtime, before the summary"
+                     : code < 0x100 ? "ended by the C runtime or exit(), before the summary"
                      : code == 0xC0000005 ? "access violation, not caught by the crash handler"
                      : code == 0xC000001D ? "illegal instruction"
                      : code == 0xC00000FD ? "stack overflow"
@@ -746,7 +767,7 @@ static int run_supervised()
     emit(line, line);
     if (g_log != INVALID_HANDLE_VALUE)
         CloseHandle(g_log);
-    return code < 0x100 ? (int)code : 255;
+    return code > 0x100 && code < 0x200 ? (int)(code & 0xFF) : code == 0 ? 0 : 255;
 }
 
 static DWORD WINAPI crash_thread(LPVOID)
@@ -816,5 +837,7 @@ int main(int argc, char **argv)
     report("INFO", "summary", "%d passed, %d failed, %d skipped", g_pass, g_fail, g_skip);
     if (g_log != INVALID_HANDLE_VALUE)
         CloseHandle(g_log);
-    return g_fail;
+    /* A worker that finishes exits 0 or 0x100 + failures, so small codes
+     * (such as 3 from abort()) can only mean the runtime ended it. */
+    return worker ? (g_fail ? 0x100 + (g_fail & 0xFF) : 0) : g_fail;
 }
