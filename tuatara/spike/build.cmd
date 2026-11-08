@@ -47,7 +47,8 @@ set LINKRAW=link /nologo /subsystem:console /nodefaultlib /entry:entry
 goto build
 
 :clangcl
-set CC=clang-cl -m32
+rem -march=i686: the Pentium Pro baseline (cmov, cmpxchg8b); clang-cl defaults lower.
+set CC=clang-cl -m32 -march=i686
 set TAG=B-clang-cl
 if defined YYTHUNKS_LIB (
     set YY=/libpath:"%YYTHUNKS_LIB%"
