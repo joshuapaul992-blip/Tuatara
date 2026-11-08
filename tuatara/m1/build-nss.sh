@@ -21,6 +21,11 @@ mkdir -p "$work"
 cp -r "$repo/nsprpub" "$work/nspr"
 cp -r "$repo/security/nss" "$work/nss"
 
+# NSS's and NSPR's make builds call nsinstall on Windows.
+mkdir -p "$work/bin"
+cp "$repo/tuatara/m1/nsinstall" "$work/bin/"
+export PATH="$work/bin:$PATH"
+
 cd "$work/nss"
 make_args=(
     OS_TARGET=WIN95          # NSPR's Windows 95-style build, as Mozilla uses
@@ -29,8 +34,14 @@ make_args=(
     NSS_DISABLE_GTESTS=1
     NSS_ENABLE_WERROR=0
 )
-# nss_build_all configures and builds NSPR first, then NSS.
-make nss_build_all "${make_args[@]}" -j"$(nproc)" 2>&1 | tail -n 200
+# nss_build_all configures and builds NSPR first, then NSS. Its top level
+# isn't safe to run in parallel.
+make nss_build_all "${make_args[@]}" > "$work/build.log" 2>&1 || {
+    grep -nE "error|Error [0-9]|No such file|not found" "$work/build.log" | head -40
+    tail -n 60 "$work/build.log"
+    exit 1
+}
+tail -n 20 "$work/build.log"
 
 dist=$(ls -d "$work"/dist/WIN95*_OPT.OBJ | head -1)
 mkdir -p "$work/out"
