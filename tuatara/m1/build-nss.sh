@@ -71,10 +71,14 @@ run_make() {
         exit 1
     }
 }
-# nss_build_all configures and builds NSPR first, then NSS; its top level
-# isn't safe to run in parallel. Only the libraries here: some tools (for
-# example signtool) need a zlib this tree doesn't give NSS.
-run_make nss_build_all DIRS="coreconf lib"
+# NSPR first (what nss_build_all would do), as its own step: variables on
+# the make command line, like DIRS below, are passed down to sub-makes.
+# NSS's top level isn't safe to run in parallel.
+run_make build_nspr
+# Then only NSS's libraries: some tools (for example signtool) need a zlib
+# this tree doesn't give NSS.
+run_make all DIRS="coreconf lib"
+run_make latest
 # Then just the tools the tests use.
 run_make -C cmd export libs DIRS="lib tstclnt certutil selfserv"
 tail -n 20 "$work/build.log"
