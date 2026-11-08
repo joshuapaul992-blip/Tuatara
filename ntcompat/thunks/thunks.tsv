@@ -1,18 +1,34 @@
 # Imports ntcompat replaces, so binaries load on Windows NT 3.51 and NT 4.0.
 #
 # Each line: DLL, function, bytes of stdcall arguments, the first Windows
-# version known to export it, and a note. The stub ntcompat_<function> in
-# thunks.c calls the real function when the system has it, and otherwise
-# a fallback. Under NTCOMPAT_EMULATE, functions newer than the emulated
+# version known to export it, the set, and a note. The stub
+# ntcompat_<function> in thunks.c calls the real function when the system
+# has it, and otherwise a fallback.
+#
+# Set "core" (imp_x86.asm) is linked into every build. Set "noyy"
+# (imp_noyy_x86.asm) only into builds without YY-Thunks, which already
+# provides those __imp_ symbols down to Windows 2000. Under NTCOMPAT_EMULATE, functions newer than the emulated
 # version take the fallback, so CI exercises them on new Windows.
 #
 # After editing, run: python3 ntcompat/thunks/gen.py
 #
-# dll       function                                args  since  note
-kernel32    GetFileSizeEx                           8     5.0    fallback GetFileSize
-kernel32    SetFilePointerEx                        20    5.0    fallback SetFilePointer
-kernel32    InitializeCriticalSectionAndSpinCount   8     4.0    NT 4.0 SP3; fallback InitializeCriticalSection
-kernel32    IsDebuggerPresent                       0     4.0    fallback: not debugged
-kernel32    IsProcessorFeaturePresent               4     4.0    SIMD answers always come from the ntcompat SIMD policy
-kernel32    AreFileApisANSI                         0     4.0    NT 3.51 availability unconfirmed; fallback TRUE
-ole32       CoTaskMemAlloc                          4     3.51   loaded on demand, so ole32.dll is not a static import; fallback process heap
+# dll       function                                args  since  set   note
+kernel32    GetFileSizeEx                           8     5.0    core  fallback GetFileSize
+kernel32    SetFilePointerEx                        20    5.0    core  fallback SetFilePointer
+kernel32    InitializeCriticalSectionAndSpinCount   8     4.0    core  NT 4.0 SP3; fallback InitializeCriticalSection
+kernel32    IsDebuggerPresent                       0     4.0    core  fallback: not debugged
+kernel32    IsProcessorFeaturePresent               4     4.0    core  SIMD answers always come from the ntcompat SIMD policy
+kernel32    AreFileApisANSI                         0     4.0    core  NT 3.51 availability unconfirmed; fallback TRUE
+ole32       CoTaskMemAlloc                          4     3.51   core  loaded on demand, so ole32.dll is not a static import; fallback process heap
+# Provided by YY-Thunks when it is linked; ntcompat's versions for builds without it.
+kernel32    EncodePointer                           4     5.1    noyy  XP SP2; fallback identity (no pointer obfuscation)
+kernel32    DecodePointer                           4     5.1    noyy  XP SP2; fallback identity
+kernel32    FlsAlloc                                4     6.0    noyy  fallback TlsAlloc; the per-thread callback isn't called (data leaks at thread exit)
+kernel32    FlsFree                                 4     6.0    noyy  fallback TlsFree
+kernel32    FlsGetValue                             4     6.0    noyy  fallback TlsGetValue
+kernel32    FlsSetValue                             8     6.0    noyy  fallback TlsSetValue
+kernel32    GetModuleHandleExW                      12    5.1    noyy  fallback GetModuleHandleW / VirtualQuery, LoadLibraryW for a reference
+kernel32    InitializeCriticalSectionEx             12    6.0    noyy  fallback InitializeCriticalSection
+kernel32    InitializeSListHead                     4     5.1    noyy  fallback: own SList on cmpxchg8b
+kernel32    InterlockedFlushSList                   4     5.1    noyy  fallback: own SList on cmpxchg8b
+kernel32    FindFirstFileExW                        24    4.0    noyy  fallback FindFirstFileW (basic name search only)

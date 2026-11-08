@@ -87,6 +87,11 @@ rem without it lld-link refuses to link and link.exe drops the SafeSEH table.
 %CC% %COMMON% /c "%ROOT%\ntcompat\thunks\thunks.c" /Fo"%OUT%\thunks.obj" || exit /b 1
 ml /nologo /c /coff /safeseh /Fo"%OUT%\imp_x86.obj" "%ROOT%\ntcompat\thunks\imp_x86.asm" || exit /b 1
 set NTCOMPAT="%OUT%\imp_x86.obj" "%OUT%\thunks.obj" "%OUT%\osversion.obj" "%OUT%\simd_policy.obj"
+rem Without YY-Thunks, ntcompat also provides the functions YY-Thunks would.
+if /i "%CANDIDATE%"=="noyy" (
+    ml /nologo /c /coff /safeseh /Fo"%OUT%\imp_noyy.obj" "%ROOT%\ntcompat\thunks\imp_noyy_x86.asm" || exit /b 1
+    set NTCOMPAT=%NTCOMPAT% "%OUT%\imp_noyy.obj"
+)
 %CC% %COMMON% %CXXONLY% /DHELLO_NT_TOOLCHAIN=\"%TAG%\" /c "%SPIKE%hello-nt\hello.cpp" /Fo"%OUT%\hello.obj" || exit /b 1
 %CC% %COMMON% %CXXONLY% /c "%SPIKE%hello-nt\hellodll.cpp" /Fo"%OUT%\hellodll.obj" || exit /b 1
 rem No C runtime at all: no security cookie, no stack probes.

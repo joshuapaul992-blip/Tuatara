@@ -16,6 +16,9 @@
 #include "../cpu/simd_policy.h"
 
 #include <windows.h>
+#if defined(_MSC_VER)
+#include <intrin.h>
+#endif
 
 /* ---- the table ---- */
 
@@ -186,4 +189,155 @@ LPVOID WINAPI ntcompat_CoTaskMemAlloc(SIZE_T size)
     fn_t real = (fn_t)real_fn(T_CoTaskMemAlloc);
     /* Without OLE, nothing can call CoTaskMemFree on this memory either. */
     return real ? real(size) : HeapAlloc(GetProcessHeap(), 0, size);
+}
+
+/* ---- set "noyy": only linked into builds without YY-Thunks ---- */
+
+PVOID WINAPI ntcompat_EncodePointer(PVOID p)
+{
+    typedef PVOID(WINAPI * fn_t)(PVOID);
+    fn_t real = (fn_t)real_fn(T_EncodePointer);
+    /* Encode and decode resolve together (both XP SP2), so they always pair. */
+    return real ? real(p) : p;
+}
+
+PVOID WINAPI ntcompat_DecodePointer(PVOID p)
+{
+    typedef PVOID(WINAPI * fn_t)(PVOID);
+    fn_t real = (fn_t)real_fn(T_DecodePointer);
+    return real ? real(p) : p;
+}
+
+/* Fibre-local storage falls back to thread-local storage: without fibres the
+ * values behave the same. The callback, which FLS runs at thread exit, isn't
+ * called, so per-thread data registered that way is not freed. */
+DWORD WINAPI ntcompat_FlsAlloc(void *callback)
+{
+    typedef DWORD(WINAPI * fn_t)(void *);
+    fn_t real = (fn_t)real_fn(T_FlsAlloc);
+    return real ? real(callback) : TlsAlloc();
+}
+
+BOOL WINAPI ntcompat_FlsFree(DWORD index)
+{
+    typedef BOOL(WINAPI * fn_t)(DWORD);
+    fn_t real = (fn_t)real_fn(T_FlsFree);
+    return real ? real(index) : TlsFree(index);
+}
+
+PVOID WINAPI ntcompat_FlsGetValue(DWORD index)
+{
+    typedef PVOID(WINAPI * fn_t)(DWORD);
+    fn_t real = (fn_t)real_fn(T_FlsGetValue);
+    return real ? real(index) : TlsGetValue(index);
+}
+
+BOOL WINAPI ntcompat_FlsSetValue(DWORD index, PVOID value)
+{
+    typedef BOOL(WINAPI * fn_t)(DWORD, PVOID);
+    fn_t real = (fn_t)real_fn(T_FlsSetValue);
+    return real ? real(index, value) : TlsSetValue(index, value);
+}
+
+#define NTC_GMHE_PIN          0x1
+#define NTC_GMHE_UNCHANGED    0x2
+#define NTC_GMHE_FROM_ADDRESS 0x4
+
+BOOL WINAPI ntcompat_GetModuleHandleExW(DWORD flags, LPCWSTR name, HMODULE *module)
+{
+    typedef BOOL(WINAPI * fn_t)(DWORD, LPCWSTR, HMODULE *);
+    fn_t real = (fn_t)real_fn(T_GetModuleHandleExW);
+    HMODULE m;
+    if (real)
+        return real(flags, name, module);
+    if (!module) {
+        SetLastError(ERROR_INVALID_PARAMETER);
+        return FALSE;
+    }
+    *module = NULL;
+    if (flags & NTC_GMHE_FROM_ADDRESS) {
+        MEMORY_BASIC_INFORMATION mbi;
+        WCHAR check[8];
+        if (!VirtualQuery(name, &mbi, sizeof(mbi)) || !mbi.AllocationBase ||
+            !GetModuleFileNameW((HMODULE)mbi.AllocationBase, check, 8)) {
+            SetLastError(ERROR_MOD_NOT_FOUND);
+            return FALSE;
+        }
+        m = (HMODULE)mbi.AllocationBase;
+    } else {
+        m = GetModuleHandleW(name);
+        if (!m)
+            return FALSE;  /* GetModuleHandleW set the error */
+    }
+    if (!(flags & NTC_GMHE_UNCHANGED)) {
+        /* Take a reference, as the real function does. A pinned module just
+         * keeps this reference forever. */
+        WCHAR path[MAX_PATH];
+        if (GetModuleFileNameW(m, path, MAX_PATH))
+            LoadLibraryW(path);
+    }
+    *module = m;
+    return TRUE;
+}
+
+BOOL WINAPI ntcompat_InitializeCriticalSectionEx(LPCRITICAL_SECTION cs, DWORD spin, DWORD flags)
+{
+    typedef BOOL(WINAPI * fn_t)(LPCRITICAL_SECTION, DWORD, DWORD);
+    fn_t real = (fn_t)real_fn(T_InitializeCriticalSectionEx);
+    if (real)
+        return real(cs, spin, flags);
+    InitializeCriticalSection(cs);
+    return TRUE;
+}
+
+/* x86 SList header: low 32 bits Next, then 16 bits Depth, 16 bits Sequence.
+ * Updated with cmpxchg8b, which the i686 baseline guarantees. */
+static LONGLONG slist_cas(volatile LONGLONG *p, LONGLONG with, LONGLONG expect)
+{
+#if defined(_MSC_VER)
+    return _InterlockedCompareExchange64(p, with, expect);
+#else
+    return __sync_val_compare_and_swap(p, expect, with);
+#endif
+}
+
+void WINAPI ntcompat_InitializeSListHead(void *header)
+{
+    typedef void(WINAPI * fn_t)(void *);
+    fn_t real = (fn_t)real_fn(T_InitializeSListHead);
+    if (real) {
+        real(header);
+        return;
+    }
+    *(volatile LONGLONG *)header = 0;
+}
+
+void *WINAPI ntcompat_InterlockedFlushSList(void *header)
+{
+    typedef void *(WINAPI * fn_t)(void *);
+    fn_t real = (fn_t)real_fn(T_InterlockedFlushSList);
+    volatile LONGLONG *h = (volatile LONGLONG *)header;
+    LONGLONG old, now;
+    if (real)
+        return real(header);
+    do {
+        old = *h;
+        if ((DWORD)old == 0)
+            return NULL;
+        /* Empty list, depth 0, sequence kept. */
+        now = old & (LONGLONG)0xFFFF000000000000ULL;
+    } while (slist_cas(h, now, old) != old);
+    return (void *)(UINT_PTR)(DWORD)old;
+}
+
+HANDLE WINAPI ntcompat_FindFirstFileExW(LPCWSTR name, int level, LPVOID data, int search_op,
+                                        LPVOID filter, DWORD flags)
+{
+    typedef HANDLE(WINAPI * fn_t)(LPCWSTR, int, LPVOID, int, LPVOID, DWORD);
+    fn_t real = (fn_t)real_fn(T_FindFirstFileExW);
+    if (real)
+        return real(name, level, data, search_op, filter, flags);
+    /* Both info levels fill a WIN32_FIND_DATAW; directory-only searches are
+     * advisory, so a plain search is a correct answer. */
+    return FindFirstFileW(name, (LPWIN32_FIND_DATAW)data);
 }

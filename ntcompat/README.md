@@ -21,6 +21,13 @@ Each stub looks up the real function once and calls it if the system has it;
 otherwise it runs a fallback. This is the technique YY-Thunks uses down to
 Windows 2000; ntcompat continues below it.
 
+The table has two sets. **core** (`imp_x86.asm`) is linked into every build:
+functions NT 3.51 or NT 4.0 lack that YY-Thunks doesn't cover, because they
+exist in Windows 2000. **noyy** (`imp_noyy_x86.asm`) is linked only into
+builds without YY-Thunks, and covers what YY-Thunks would (`EncodePointer`,
+the `Fls*` functions, `GetModuleHandleExW`, SLists and so on), so a binary can
+run on NT 3.51 with ntcompat alone.
+
 To add a function: add a line to [`thunks/thunks.tsv`](thunks/thunks.tsv), write
 `ntcompat_<function>` in `thunks.c`, and run:
 

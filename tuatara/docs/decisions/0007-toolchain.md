@@ -115,6 +115,15 @@ the thunks were added:
   `/skip=` and `/only=`, and variant C (candidate A without YY-Thunks) to
   tell the two apart.
 
+The map files from that build narrow it further: **without YY-Thunks the EXE
+has no TLS directory at all; with it, the EXE gets one whose only callback
+is YY-Thunks' (`.CRT$XLY`)**, part of its TLS emulation that works on the TEB
+and loader structures, whose layouts differ before Windows 2000. Variant C
+therefore now links ntcompat's own versions of the functions YY-Thunks covered
+for the CRT (the "noyy" thunk set), so it runs on NT 3.51 without YY-Thunks.
+If C passes the threads test where A dies, YY-Thunks' thread-start code is
+the cause.
+
 **Current lean: candidate A** (MSVC, as upstream builds, with
 `apiaudit set-version`). It is confirmed only after the runs on the real
 machines; B stays in the spike to compare.
