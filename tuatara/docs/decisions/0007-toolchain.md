@@ -97,6 +97,24 @@ What only the real machines can still show:
 - whether `thread_local` in a DLL loaded with `LoadLibrary` works there
   (the `dll-tls` check; Windows Server and Wine always pass it).
 
+## First run on real NT 3.51
+
+Windows NT 3.51 SP5 (build 1057), 2 CPUs, candidate A from the build after
+the thunks were added:
+
+- **The NT 3.51 loader accepts the files** (PE versions patched to 3.10),
+  and every import resolves.
+- CRT start-up, C++17 containers, static initialisation and x87 floating
+  point all pass, with 53-bit precision and IEEE-correct doubles.
+- **The program then ends silently at the start of the `threads` test**,
+  with no error message. The test's first action is creating a thread, so
+  the suspects are callbacks that run when a thread starts: the static
+  CRT's and YY-Thunks' (TLS callbacks, thread attach), which assume at
+  least Windows 2000. The next spike build adds a crash report with module
+  offsets and map files, progress lines from inside new threads,
+  `/skip=` and `/only=`, and variant C (candidate A without YY-Thunks) to
+  tell the two apart.
+
 **Current lean: candidate A** (MSVC, as upstream builds, with
 `apiaudit set-version`). It is confirmed only after the runs on the real
 machines; B stays in the spike to compare.

@@ -75,6 +75,12 @@ jobs:
           cl 2>&1 | findstr /i "version"
           call tuatara\spike\build.cmd msvc dist\A-MSVC
 
+      - name: "Variant C: candidate A without YY-Thunks"
+        id: noyy
+        continue-on-error: true
+        shell: cmd
+        run: call tuatara\spike\build.cmd noyy dist\C-NOYY
+
       - name: "Candidate B: clang-cl + lld-link"
         id: clangcl
         continue-on-error: true
@@ -149,9 +155,10 @@ jobs:
       - name: Fail if a candidate failed to build or test
         if: >-
           steps.msvc.outcome != 'success' || steps.clangcl.outcome != 'success' ||
+          steps.noyy.outcome != 'success' ||
           steps.thunked.outcome != 'success' || steps.smoke.outcome != 'success'
         shell: bash
         run: |
-          echo "build msvc: ${{ steps.msvc.outcome }}, build clang-cl: ${{ steps.clangcl.outcome }}"
+          echo "build msvc: ${{ steps.msvc.outcome }}, no-YY: ${{ steps.noyy.outcome }}, clang-cl: ${{ steps.clangcl.outcome }}"
           echo "thunk imports: ${{ steps.thunked.outcome }}, smoke tests: ${{ steps.smoke.outcome }}"
           exit 1

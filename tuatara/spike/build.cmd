@@ -7,6 +7,8 @@ rem Build the M0 toolchain spike with one candidate toolchain.
 rem
 rem   build.cmd msvc    OUTDIR   candidate A: cl + link, then apiaudit set-version
 rem   build.cmd clangcl OUTDIR   candidate B: clang-cl + lld-link /subsystem:...,3.10
+rem   build.cmd noyy    OUTDIR   variant C: candidate A without YY-Thunks (ntcompat only),
+rem                              to tell YY-Thunks problems from others on old systems
 rem
 rem Run from an x86 Visual Studio developer prompt (vcvarsall x86).
 rem YYTHUNKS_OBJ must point at YY_Thunks_for_Win2K.obj. For candidate B,
@@ -20,7 +22,7 @@ set CANDIDATE=%~1
 set OUT=%~2
 if "%CANDIDATE%"=="" goto usage
 if "%OUT%"=="" goto usage
-if not exist "%YYTHUNKS_OBJ%" (
+if /i not "%CANDIDATE%"=="noyy" if not exist "%YYTHUNKS_OBJ%" (
     echo build.cmd: YYTHUNKS_OBJ does not point at YY_Thunks_for_Win2K.obj
     exit /b 2
 )
@@ -34,15 +36,27 @@ set CXXONLY=/EHsc /std:c++17
 set LIBS=user32.lib gdi32.lib advapi32.lib kernel32.lib
 
 if /i "%CANDIDATE%"=="msvc" goto msvc
+if /i "%CANDIDATE%"=="noyy" goto noyy
 if /i "%CANDIDATE%"=="clangcl" goto clangcl
 goto usage
 
 :msvc
 set CC=cl
 set TAG=A-msvc
+set SETVERSION=1
 set YY=%YYTHUNKS_OBJ%
 set LINKEXE=link /nologo /subsystem:console
 set LINKDLL=link /nologo /dll /entry:DllMainCRTStartupForYY_Thunks
+set LINKRAW=link /nologo /subsystem:console /nodefaultlib /entry:entry
+goto build
+
+:noyy
+set CC=cl
+set TAG=C-msvc-noyy
+set SETVERSION=1
+set YY=
+set LINKEXE=link /nologo /subsystem:console
+set LINKDLL=link /nologo /dll
 set LINKRAW=link /nologo /subsystem:console /nodefaultlib /entry:entry
 goto build
 
@@ -50,6 +64,7 @@ goto build
 rem -march=i686: the Pentium Pro baseline (cmov, cmpxchg8b); clang-cl defaults lower.
 set CC=clang-cl -m32 -march=i686
 set TAG=B-clang-cl
+set SETVERSION=
 if defined YYTHUNKS_LIB (
     set YY=/libpath:"%YYTHUNKS_LIB%"
 ) else (
@@ -79,11 +94,12 @@ rem No C runtime at all: no security cookie, no stack probes.
 
 echo === %TAG%: linking
 rem ntcompat's objects come first so its __imp_ symbols win over the import libraries.
-%LINKEXE% /out:"%OUT%\HELLO-NT.EXE" "%OUT%\hello.obj" %NTCOMPAT% %YY% %LIBS% || exit /b 1
-%LINKDLL% /out:"%OUT%\HELLODLL.DLL" "%OUT%\hellodll.obj" %NTCOMPAT% %YY% advapi32.lib kernel32.lib || exit /b 1
+rem Map files turn a CRASH line's module offset into a function name.
+%LINKEXE% /out:"%OUT%\HELLO-NT.EXE" /map:"%OUT%\HELLO-NT.MAP" "%OUT%\hello.obj" %NTCOMPAT% %YY% %LIBS% || exit /b 1
+%LINKDLL% /out:"%OUT%\HELLODLL.DLL" /map:"%OUT%\HELLODLL.MAP" "%OUT%\hellodll.obj" %NTCOMPAT% %YY% advapi32.lib kernel32.lib || exit /b 1
 %LINKRAW% /out:"%OUT%\NTEXPORT.EXE" "%OUT%\ntexports.obj" kernel32.lib || exit /b 1
 
-if /i "%CANDIDATE%"=="msvc" (
+if defined SETVERSION (
     echo === %TAG%: setting PE versions to 3.10 ^(link.exe won't write them^)
     python "%ROOT%\tuatara\tools\apiaudit" set-version --os 3.10 --subsystem 3.10 ^
         "%OUT%\HELLO-NT.EXE" "%OUT%\HELLODLL.DLL" "%OUT%\NTEXPORT.EXE" || exit /b 1
@@ -93,5 +109,5 @@ echo === %TAG%: done
 exit /b 0
 
 :usage
-echo usage: build.cmd msvc^|clangcl OUTDIR
+echo usage: build.cmd msvc^|noyy^|clangcl OUTDIR
 exit /b 2

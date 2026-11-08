@@ -6,7 +6,11 @@
  * hello-nt: the M0 toolchain spike. Checks that a binary built by a given
  * toolchain starts and works on Windows NT 3.51, NT 4.0 and Windows 2000.
  *
- *     HELLO-NT [/quick] [/nogui]
+ *     HELLO-NT [/quick] [/nogui] [/only=test,...] [/skip=test,...]
+ *
+ * Tests: os crt fpu threads dll files winsock simd misc gui thunks dlltls.
+ * A crash prints a CRASH line with the exception, module and offset;
+ * /crash triggers one on purpose to check that reporting works.
  *
  * Writes PASS/FAIL/SKIP/INFO lines to the console and to HELLO-NT.TXT in the
  * current directory. The exit code is the number of failures.
@@ -46,24 +50,99 @@
 #define HELLO_NT_TOOLCHAIN "unknown"
 #endif
 
-static FILE *g_log;
+/* Output goes straight to the console and the log with WriteFile, unbuffered,
+ * so everything printed before a crash survives it. */
+static HANDLE g_out = INVALID_HANDLE_VALUE;
+static HANDLE g_log = INVALID_HANDLE_VALUE;
 static int g_pass, g_fail, g_skip;
-static bool g_quick, g_nogui;
+static bool g_quick, g_nogui, g_crash;
+static const char *g_only, *g_skiplist;
+static const char *volatile g_current = "startup";
+
+static void emit(const char *console_line, const char *log_line)
+{
+    DWORD n;
+    if (g_out != INVALID_HANDLE_VALUE && g_out != NULL)
+        WriteFile(g_out, console_line, (DWORD)strlen(console_line), &n, nullptr);
+    if (g_log != INVALID_HANDLE_VALUE)
+        WriteFile(g_log, log_line, (DWORD)strlen(log_line), &n, nullptr);
+}
 
 static void report(const char *status, const char *name, const char *fmt, ...)
 {
-    char detail[512];
+    char detail[512], con[640], log[640];
     va_list ap;
     va_start(ap, fmt);
     _vsnprintf(detail, sizeof(detail) - 1, fmt, ap);
     detail[sizeof(detail) - 1] = 0;
     va_end(ap);
-    printf("%-4s %-14s %s\n", status, name, detail);
-    if (g_log)
-        fprintf(g_log, "%s\t%s\t%s\n", status, name, detail);
+    _snprintf(con, sizeof(con) - 1, "%-4s %-14s %s\r\n", status, name, detail);
+    con[sizeof(con) - 1] = 0;
+    _snprintf(log, sizeof(log) - 1, "%s\t%s\t%s\r\n", status, name, detail);
+    log[sizeof(log) - 1] = 0;
+    emit(con, log);
     if (!strcmp(status, "PASS")) g_pass++;
     else if (!strcmp(status, "FAIL")) g_fail++;
     else if (!strcmp(status, "SKIP")) g_skip++;
+}
+
+/* A progress line that isn't a result; also records the current step for
+ * the crash report. */
+static void step(const char *what)
+{
+    g_current = what;
+    report("RUN", what, "");
+}
+
+/* ---- crash reporting ---- */
+
+/* Formats with wsprintfA (user32, NT 3.1) and writes with WriteFile only:
+ * the C runtime may be in an inconsistent state when this runs. */
+static LONG WINAPI crash_filter(EXCEPTION_POINTERS *ep)
+{
+    char line[600], module[MAX_PATH] = "?";
+    EXCEPTION_RECORD *er = ep->ExceptionRecord;
+    MEMORY_BASIC_INFORMATION mbi;
+    DWORD_PTR base = 0, addr = (DWORD_PTR)er->ExceptionAddress;
+    if (VirtualQuery(er->ExceptionAddress, &mbi, sizeof(mbi))) {
+        base = (DWORD_PTR)mbi.AllocationBase;
+        if (!GetModuleFileNameA((HMODULE)base, module, sizeof(module)))
+            lstrcpyA(module, "(not a module)");
+    }
+    wsprintfA(line, "CRASH exception 0x%08lX at 0x%08lX = %s+0x%lX, thread %lu, during '%s'",
+              er->ExceptionCode, (unsigned long)addr, module, (unsigned long)(addr - base),
+              GetCurrentThreadId(), g_current);
+    if (er->ExceptionCode == EXCEPTION_ACCESS_VIOLATION && er->NumberParameters >= 2) {
+        char more[80];
+        wsprintfA(more, " (%s 0x%08lX)", er->ExceptionInformation[0] ? "writing" : "reading",
+                  (unsigned long)er->ExceptionInformation[1]);
+        lstrcatA(line, more);
+    }
+    lstrcatA(line, "\r\n");
+    emit(line, line);
+    ExitProcess(3);
+    return EXCEPTION_EXECUTE_HANDLER;
+}
+
+static bool listed(const char *list, const char *name)
+{
+    if (!list)
+        return false;
+    size_t n = strlen(name);
+    for (const char *p = list; *p;) {
+        const char *end = strchr(p, ',');
+        size_t len = end ? (size_t)(end - p) : strlen(p);
+        if (len == n && !_strnicmp(p, name, n))
+            return true;
+        p += len + (end ? 1 : 0);
+    }
+    return false;
+}
+
+static bool wanted(const char *name)
+{
+    if (g_only && !listed(g_only, name)) return false;
+    return !listed(g_skiplist, name);
 }
 
 #define CHECK(name, cond, ...) report((cond) ? "PASS" : "FAIL", name, __VA_ARGS__)
@@ -174,6 +253,12 @@ static DWORD g_tls_index;
 
 static DWORD WINAPI counting_thread(LPVOID arg)
 {
+    /* If this line never appears, the thread died while starting up, in a
+     * TLS callback or DLL_THREAD_ATTACH, before reaching our code. */
+    char line[64];
+    wsprintfA(line, "RUN  thread %d       started (id %lu)\r\n", (int)(INT_PTR)arg,
+              GetCurrentThreadId());
+    emit(line, line);
     TlsSetValue(g_tls_index, arg);
     for (int i = 0; i < 100000; i++) {
         EnterCriticalSection(&g_cs);
@@ -189,8 +274,16 @@ static void test_threads()
     InitializeCriticalSection(&g_cs);
     g_tls_index = TlsAlloc();
     HANDLE threads[4];
-    for (int i = 0; i < 4; i++)
+    for (int i = 0; i < 4; i++) {
+        step(i == 0 ? "threads:create1" : i == 1 ? "threads:create2" :
+             i == 2 ? "threads:create3" : "threads:create4");
         threads[i] = CreateThread(nullptr, 0, counting_thread, (LPVOID)(INT_PTR)(i + 1), 0, nullptr);
+        if (!threads[i]) {
+            report("FAIL", "threads", "CreateThread failed (error %lu)", GetLastError());
+            return;
+        }
+    }
+    step("threads:wait");
     DWORD w = WaitForMultipleObjects(4, threads, TRUE, 60000);
     bool tls_ok = true;
     for (HANDLE h : threads) {
@@ -601,13 +694,26 @@ static void test_misc()
     CHECK("virtualalloc", ok, "reserve 256 MB, commit 1 MB");
 }
 
+static DWORD WINAPI crash_thread(LPVOID)
+{
+    *(volatile int *)(INT_PTR)0x10 = 1;
+    return 0;
+}
+
 int main(int argc, char **argv)
 {
     for (int i = 1; i < argc; i++) {
         if (!_stricmp(argv[i], "/quick")) g_quick = true;
-        if (!_stricmp(argv[i], "/nogui")) g_nogui = true;
+        else if (!_stricmp(argv[i], "/nogui")) g_nogui = true;
+        else if (!_stricmp(argv[i], "/crash")) g_crash = true;
+        else if (!_strnicmp(argv[i], "/only=", 6)) g_only = argv[i] + 6;
+        else if (!_strnicmp(argv[i], "/skip=", 6)) g_skiplist = argv[i] + 6;
     }
-    g_log = fopen("HELLO-NT.TXT", "w");
+    g_out = GetStdHandle(STD_OUTPUT_HANDLE);
+    g_log = CreateFileA("HELLO-NT.TXT", GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS,
+                        FILE_ATTRIBUTE_NORMAL, nullptr);
+    SetUnhandledExceptionFilter(crash_filter);
+
     report("INFO", "hello-nt", "toolchain %s", HELLO_NT_TOOLCHAIN);
 #if defined(__clang__)
     report("INFO", "compiler", "clang %s", __clang_version__);
@@ -616,20 +722,33 @@ int main(int argc, char **argv)
 #elif defined(__GNUC__)
     report("INFO", "compiler", "gcc %s", __VERSION__);
 #endif
-    test_os();
-    test_crt();
-    test_fpu();
-    test_threads();
-    test_dll();
-    test_files();
-    test_winsock();
-    test_simd();
-    test_misc();
-    test_gui();
-    test_thunks();
-    test_dll_tls();
+    if (g_only || g_skiplist)
+        report("INFO", "selection", "only=%s skip=%s", g_only ? g_only : "-",
+               g_skiplist ? g_skiplist : "-");
+
+    if (g_crash) {  // checks that the crash report works: fault in a new thread
+        step("crash-test");
+        HANDLE h = CreateThread(nullptr, 0, crash_thread, nullptr, 0, nullptr);
+        WaitForSingleObject(h, 10000);
+    }
+
+    static const struct { const char *name; void (*fn)(); } tests[] = {
+        {"os", test_os},         {"crt", test_crt},         {"fpu", test_fpu},
+        {"threads", test_threads}, {"dll", test_dll},       {"files", test_files},
+        {"winsock", test_winsock}, {"simd", test_simd},     {"misc", test_misc},
+        {"gui", test_gui},       {"thunks", test_thunks},   {"dlltls", test_dll_tls},
+    };
+    for (const auto &t : tests) {
+        if (!wanted(t.name)) {
+            report("SKIP", t.name, "not selected");
+            continue;
+        }
+        step(t.name);
+        t.fn();
+    }
+    g_current = "summary";
     report("INFO", "summary", "%d passed, %d failed, %d skipped", g_pass, g_fail, g_skip);
-    if (g_log)
-        fclose(g_log);
+    if (g_log != INVALID_HANDLE_VALUE)
+        CloseHandle(g_log);
     return g_fail;
 }

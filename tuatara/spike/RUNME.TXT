@@ -1,41 +1,51 @@
 TUATARA TOOLCHAIN SPIKE - HOW TO RUN IT
 =======================================
 
-There are two folders, one per candidate toolchain:
+There are three folders, one per build:
 
-  A-MSVC       built with Microsoft's compiler and linker
-  B-CLANG      built with clang-cl and lld-link
+  A-MSVC       Microsoft compiler and linker, with YY-Thunks   (main candidate)
+  B-CLANG      clang-cl and lld-link, with YY-Thunks
+  C-NOYY       like A-MSVC but without YY-Thunks (a comparison)
 
-Each holds the same three programs. They fit on one floppy per folder.
+Each holds the same programs. On each machine (NT 3.51, NT 4.0, Windows
+2000), from a command prompt in the folder:
 
-On each machine (NT 3.51, NT 4.0, Windows 2000), for each folder:
-
-1. Copy the folder to a directory on the hard disk, for example C:\SPIKE\A.
-   Running from a floppy works but is slow.
-
-2. Open a command prompt in that directory and run:
+1. Once per machine:
 
      NTEXPORT
 
-   It writes EXPORTS.TXT: the list of functions this Windows version has.
-   It is the same for both folders, so you only need it once per machine.
+   It writes EXPORTS.TXT: the list of functions this Windows has.
 
-3. Run:
+2. In each folder, run:
 
      HELLO-NT
+     ECHO %ERRORLEVEL%
 
-   A small window with a colour gradient appears for about two seconds.
-   Results go to the screen and to HELLO-NT.TXT. The last line says how
-   many checks passed and failed. Add /QUICK for a shorter SIMD test.
+   Results go to the screen and to HELLO-NT.TXT. A window with a colour
+   gradient appears for about two seconds near the end.
 
-   If Windows says "The procedure entry point ... could not be located"
-   or "is not a valid Windows NT application", write the message down
-   exactly: that is the result for this toolchain on this system.
+   - "RUN" lines show progress. If the program stops early, the last RUN
+     line says where.
+   - A "CRASH" line, if any, gives the exception code, module and offset.
+     Copy it exactly.
+   - The ERRORLEVEL number matters most when the program stops without a
+     CRASH line.
+   - If Windows shows a dialog ("The procedure entry point ... could not be
+     located", "is not a valid Windows NT application", "Application
+     Error"), write the message down exactly.
 
-4. Copy back EXPORTS.TXT and both HELLO-NT.TXT files, renamed so we can
-   tell them apart, for example:
+3. If HELLO-NT stops at a test, run it again skipping that test, to see
+   the rest:
 
-     NT4-EXP.TXT   NT4-A.TXT   NT4-B.TXT
+     HELLO-NT /SKIP=threads
+
+   Several tests can be listed: /SKIP=threads,dll   Or run just one:
+   /ONLY=threads   Test names: os crt fpu threads dll files winsock simd
+   misc gui thunks dlltls
+
+4. Copy back EXPORTS.TXT and each folder's HELLO-NT.TXT (renamed, for
+   example NT351-A.TXT, NT351-B.TXT, NT351-C.TXT), plus the ERRORLEVEL
+   numbers and any dialog text.
 
 Also note each machine's CPU, RAM, number of CPUs, and whether WINSIMD
 is installed.
