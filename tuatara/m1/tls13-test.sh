@@ -12,6 +12,8 @@
 # NTCOMPAT_EMULATE is passed through, so the same test can run as on NT 3.51.
 
 set -uo pipefail
+# Git Bash would rewrite arguments like "/CN=localhost" as paths.
+export MSYS_NO_PATHCONV=1
 dir=$1
 cd "$dir"
 # Work in a relative directory: the native Windows openssl.exe and

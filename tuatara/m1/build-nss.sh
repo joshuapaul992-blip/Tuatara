@@ -71,16 +71,20 @@ run_make() {
         exit 1
     }
 }
-# NSPR first (what nss_build_all would do), as its own step: variables on
-# the make command line, like DIRS below, are passed down to sub-makes.
-# NSS's top level isn't safe to run in parallel.
+# NSPR first, as nss_build_all would. NSS's top level isn't safe to run
+# in parallel.
 run_make build_nspr
-# Then only NSS's libraries: some tools (for example signtool) need a zlib
-# this tree doesn't give NSS.
-run_make all DIRS="coreconf lib"
+# Then only NSS's libraries and the tools the tests use, directory by
+# directory (some tools, for example signtool, need a zlib this tree doesn't
+# give NSS). Not with a DIRS override: variables on the make command line
+# reach every sub-make.
+for d in coreconf lib cmd/lib cmd/tstclnt cmd/certutil cmd/selfserv; do
+    run_make -C "$d" export
+done
+for d in coreconf lib cmd/lib cmd/tstclnt cmd/certutil cmd/selfserv; do
+    run_make -C "$d" libs
+done
 run_make latest
-# Then just the tools the tests use.
-run_make -C cmd export libs DIRS="lib tstclnt certutil selfserv"
 tail -n 20 "$work/build.log"
 
 dist=$(ls -d "$work"/dist/WIN95*_OPT.OBJ | head -1)
