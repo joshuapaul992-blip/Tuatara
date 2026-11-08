@@ -1,0 +1,82 @@
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+# M1: build NSPR and NSS from the tree for i686 (x87, static CRT) with MSVC,
+# record their Windows imports, and check a TLS 1.3 handshake on the runner.
+
+name: Tuatara M1 NSPR/NSS
+
+on:
+  push:
+    branches: [tuatara]
+    paths: ["nsprpub/**", "security/nss/**", "ntcompat/**", "tuatara/m1/**",
+            ".github/workflows/tuatara-m1-nss.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  nss:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            nsprpub
+            security/nss
+            ntcompat
+            tuatara
+          sparse-checkout-cone-mode: true
+
+      - name: Name the build after its commit
+        shell: bash
+        run: echo "BUILD_ID=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+
+      - uses: ilammy/msvc-dev-cmd@v1.13.0
+        with:
+          arch: x86
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW32
+          path-type: inherit
+          update: false
+          install: make perl diffutils
+
+      - name: Build NSPR and NSS
+        shell: msys2 {0}
+        run: |
+          set -e
+          # MSYS2's coreutils "link" would shadow MSVC's linker.
+          rm -f /usr/bin/link.exe
+          which cl link ml
+          bash tuatara/m1/build-nss.sh "$PWD" "$PWD/work"
+
+      - name: Record imports and PE headers
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p out
+          [ -d work/out ] && cp -r work/out/. out/ || true
+          for f in out/*.dll out/*.exe; do
+            [ -f "$f" ] && python tuatara/tools/apiaudit dump "$f"
+          done > out/IMPORTS.TXT 2>&1 || true
+          echo "=== imported DLLs"
+          grep -E "^import" out/IMPORTS.TXT | sort | uniq -c
+          echo "=== all imported functions"
+          awk '/^import /{d=tolower($2)} /^    /{print d"!"$1}' out/IMPORTS.TXT | sort -u | tee out/IMPORTED-FUNCTIONS.TXT | wc -l
+
+      - name: TLS 1.3 handshake with a local OpenSSL server
+        id: tls
+        if: always()
+        shell: bash
+        run: bash tuatara/m1/tls13-test.sh out
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tuatara-m1-nss-${{ env.BUILD_ID }}
+          path: out/
+          if-no-files-found: warn
