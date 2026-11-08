@@ -72,6 +72,19 @@ overview; update it when a milestone's scope changes.
 | M0.5 Toolchain spike: `hello-nt`, both candidates built in CI | Built; needs runs on the machines |
 | M0.6 CI: `apiaudit` tests on Linux; Windows spike build | Done |
 
+## M1 in detail
+
+| Step | Status |
+|---|---|
+| NSPR 4.24 + NSS 3.48.6 built for i686 x87, static CRT (CI, [`tuatara/m1`](../m1/build-nss.sh)) | Done |
+| TLS 1.3 handshake (`tstclnt` against OpenSSL), natively and with `NTCOMPAT_EMULATE=nt351` | Passing in CI |
+| ntcompat linked into every NSPR/NSS file; imports limited to `kernel32`, `advapi32`, `winmm` | Done: Winsock binds at runtime to `ws2_32`, or `wsock32` on NT 3.51 |
+| NSS randomness on NT 3.51 (`RtlGenRandom` fallback: CryptoAPI, then ntcompat's pool) | Done |
+| NSS SIMD (AES-NI, PCLMUL, AVX, SSSE3, mpi SSE2) follows the SIMD policy | Done |
+| NSS on real NT 3.51 (`NSSTEST.CMD`) | To run |
+| SpiderMonkey shell, interpreter-only, jit-tests | To do |
+| ICU and the allocator (mozjemalloc) self-tests | To do |
+
 ## Risks
 
 | Risk | Mitigation |

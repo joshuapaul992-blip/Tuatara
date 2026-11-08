@@ -98,5 +98,6 @@ if [ "$mode" = ntcompat ]; then
     python "$(cygpath -w "$repo/tuatara/tools/apiaudit")" set-version --os 3.10 --subsystem 3.10 \
         "$work"/out/*.dll "$work"/out/*.exe
 fi
+cp "$repo/tuatara/m1/NSSTEST.CMD" "$work/out/"
 echo "NSPR/NSS build ${BUILD_ID:-local} ($mode)" > "$work/out/BUILD.TXT"
 ls -la "$work/out"
