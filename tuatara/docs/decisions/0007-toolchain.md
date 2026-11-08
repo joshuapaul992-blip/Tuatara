@@ -60,6 +60,28 @@ clang 20.1, Windows SDK 10.0.26100, YY-Thunks 1.2.3):
   style: `__imp_` pointers resolved at runtime with a fallback.
 - `ole32.dll` is imported for `CoTaskMemAlloc` (from YY-Thunks); NT 3.51's
   32-bit OLE should provide it.
+- **After the fix, both candidates build** and pass all 21 checks on the
+  runner. clang-cl ignores `/arch:IA32` ("argument unused"); `-march=i686`
+  is what keeps SSE out of its code.
+- **SSE in the binaries comes only from the prebuilt static CRT** (its SSE2
+  `memcpy`/math paths) and `hello-nt`'s own stress test: both candidates
+  contain exactly the same XMM instructions, so the compilers generated
+  none. The CRT takes those paths only when
+  `IsProcessorFeaturePresent(PF_XMMI64_INSTRUCTIONS_AVAILABLE)` is true,
+  which NT 4.0 reports as false. NT 3.51 lacks that function, so `ntcompat`'s
+  replacement must answer from the SIMD policy
+  ([0009](0009-winsimd.md)); that also keeps the CRT's choice consistent
+  with ours everywhere.
+- **Candidate B's YY-Thunks import libraries add direct ntdll imports**
+  (`LdrAddRefDll`, `LdrGetProcedureAddress`, `LdrLoadDll`,
+  `NtOpenKeyedEvent`). `LdrAddRefDll` and `NtOpenKeyedEvent` are expected to
+  be Windows XP and later, which would stop B's files loading on Windows 2000
+  and earlier. Candidate A's object-file form of YY-Thunks imports nothing
+  from ntdll.
+
+**Current lean: candidate A** (MSVC, as upstream builds, with
+`apiaudit set-version`). It is confirmed only after the runs on the real
+machines; B stays in the spike to compare.
 
 ## How the spike decides
 
