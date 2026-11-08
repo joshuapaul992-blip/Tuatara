@@ -8,6 +8,7 @@ It is linked statically into every binary; nothing is installed on the system.
 | [`core/osversion`](core/osversion.h) | The Windows version ntcompat decides for: the real one, or the one named by `NTCOMPAT_EMULATE` |
 | [`cpu/simd_policy`](cpu/simd_policy.h) | Which SIMD sets may be used: only where the OS or WINSIMD 1.2 saves their registers ([decision 0009](../tuatara/docs/decisions/0009-winsimd.md)) |
 | [`thunks/`](thunks/thunks.tsv) | Stand-ins for imports that NT 3.51 and NT 4.0 lack |
+| [`crypto/entropy`](crypto/entropy.h) | Random bytes where `RtlGenRandom` is missing: CryptoAPI on NT 4.0/2000, ntcompat's own pool on NT 3.51 |
 
 ## Import thunks
 
@@ -28,6 +29,13 @@ builds without YY-Thunks, and covers what YY-Thunks would (`EncodePointer`,
 the `Fls*` functions, `GetModuleHandleExW`, SLists and so on), so a binary can
 run on NT 3.51 with ntcompat alone.
 
+A third set, **lazy** (`imp_lazy_x86.asm`, resolved by `lazy.c`), needs no C
+code per function: each import starts at a generated binder that, on the first
+call, looks the function up in a list of DLLs (for example `ws2_32|wsock32`, so
+NT 3.51 falls back to Winsock 1.1), patches the import pointer and jumps there.
+If no DLL has it, the import is pointed at a generated stub that sets the row's
+error code and returns its failure value (`fail=` and `err=` in the note).
+
 To add a function: add a line to [`thunks/thunks.tsv`](thunks/thunks.tsv), write
 `ntcompat_<function>` in `thunks.c`, and run:
 
@@ -44,3 +52,17 @@ spike binaries no longer import any thunked function (`gen.py --check-imports`).
 that system: thunked functions newer than it take their fallback, and the SIMD
 policy decides as there. It does not change the Windows loader, so whether a
 binary *loads* on an old system is still only shown on that system.
+
+## Random numbers on NT 3.51
+
+NSS gets all its randomness from `RtlGenRandom` (Windows XP and later).
+ntcompat's replacement uses CryptoAPI's `CryptGenRandom` on NT 4.0 and
+Windows 2000. NT 3.51 has neither, so ntcompat runs its own generator: a
+SHA-256 pool seeded from the CPU's RDSEED/RDRAND when present, timestamp-counter
+timing jitter, high-resolution timers and system state, with output hashed per
+block and the pool rekeyed after every request.
+
+That generator is the weakest part of the NT 3.51 port. On a CPU with RDSEED or
+RDRAND it is sound; without them, its unpredictability rests on timer jitter and
+system state, which is less than a real OS random source gives. Treat TLS on
+NT 3.51 machines without those instructions accordingly.
