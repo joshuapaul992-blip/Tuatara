@@ -1,6 +1,9 @@
 TUATARA TOOLCHAIN SPIKE - HOW TO RUN IT
 =======================================
 
+BUILD.TXT says which build this is. The first line HELLO-NT prints
+says it too; please make sure they match the build you were sent.
+
 There are three folders, one per build:
 
   A-MSVC       Microsoft compiler and linker, with YY-Thunks   (main candidate)

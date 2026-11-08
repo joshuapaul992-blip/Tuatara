@@ -124,6 +124,13 @@ for the CRT (the "noyy" thunk set), so it runs on NT 3.51 without YY-Thunks.
 If C passes the threads test where A dies, YY-Thunks' thread-start code is
 the cause.
 
+Confirmed on the NT 3.51 machine: the intermediate variant C, built before
+the "noyy" set existed, stops at load with "The procedure entry point
+DecodePointer could not be located in the dynamic link library KERNEL32.dll".
+So NT 3.51 really lacks it, and the VS2022 runtime doesn't load there
+without YY-Thunks or ntcompat's replacements. (Builds now carry their commit
+ID in `BUILD.TXT`, in `hello-nt`'s first line and in the artifact name.)
+
 **Current lean: candidate A** (MSVC, as upstream builds, with
 `apiaudit set-version`). It is confirmed only after the runs on the real
 machines; B stays in the spike to compare.

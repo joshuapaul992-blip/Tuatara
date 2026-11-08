@@ -49,6 +49,9 @@
 #ifndef HELLO_NT_TOOLCHAIN
 #define HELLO_NT_TOOLCHAIN "unknown"
 #endif
+#ifndef HELLO_NT_BUILD
+#define HELLO_NT_BUILD "local"  /* CI passes the commit ID */
+#endif
 
 /* Output goes straight to the console and the log with WriteFile, unbuffered,
  * so everything printed before a crash survives it. */
@@ -714,7 +717,7 @@ int main(int argc, char **argv)
                         FILE_ATTRIBUTE_NORMAL, nullptr);
     SetUnhandledExceptionFilter(crash_filter);
 
-    report("INFO", "hello-nt", "toolchain %s", HELLO_NT_TOOLCHAIN);
+    report("INFO", "hello-nt", "toolchain %s, build %s", HELLO_NT_TOOLCHAIN, HELLO_NT_BUILD);
 #if defined(__clang__)
     report("INFO", "compiler", "clang %s", __clang_version__);
 #elif defined(_MSC_FULL_VER)

@@ -33,6 +33,10 @@ jobs:
             ntcompat
           sparse-checkout-cone-mode: true
 
+      - name: Name the build after its commit
+        shell: bash
+        run: echo "BUILD_ID=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+
       - name: Get YY-Thunks (NuGet package, pinned by hash)
         shell: pwsh
         run: |
@@ -143,12 +147,14 @@ jobs:
       - name: Add instructions
         if: always()
         shell: bash
-        run: cp tuatara/spike/RUNME.TXT dist/ 2>/dev/null || true
+        run: |
+          cp tuatara/spike/RUNME.TXT dist/ 2>/dev/null || true
+          echo "Tuatara spike build $BUILD_ID (commit $GITHUB_SHA)" > dist/BUILD.TXT
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: tuatara-spike
+          name: tuatara-spike-${{ env.BUILD_ID }}
           path: dist/
           if-no-files-found: warn
 

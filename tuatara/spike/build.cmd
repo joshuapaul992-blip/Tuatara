@@ -79,6 +79,8 @@ goto build
 
 :build
 echo === %TAG%: compiling
+rem BUILD_ID (the commit, set by CI) is printed by hello-nt and written to BUILD.TXT.
+if not defined BUILD_ID set BUILD_ID=local
 rem ntcompat: the SIMD policy and the NT 3.51 / NT 4.0 import thunks.
 rem /safeseh marks the assembled object SafeSEH-compatible (it has no handlers);
 rem without it lld-link refuses to link and link.exe drops the SafeSEH table.
@@ -92,7 +94,7 @@ if /i "%CANDIDATE%"=="noyy" (
     ml /nologo /c /coff /safeseh /Fo"%OUT%\imp_noyy.obj" "%ROOT%\ntcompat\thunks\imp_noyy_x86.asm" || exit /b 1
     set NTCOMPAT=%NTCOMPAT% "%OUT%\imp_noyy.obj"
 )
-%CC% %COMMON% %CXXONLY% /DHELLO_NT_TOOLCHAIN=\"%TAG%\" /c "%SPIKE%hello-nt\hello.cpp" /Fo"%OUT%\hello.obj" || exit /b 1
+%CC% %COMMON% %CXXONLY% /DHELLO_NT_TOOLCHAIN=\"%TAG%\" /DHELLO_NT_BUILD=\"%BUILD_ID%\" /c "%SPIKE%hello-nt\hello.cpp" /Fo"%OUT%\hello.obj" || exit /b 1
 %CC% %COMMON% %CXXONLY% /c "%SPIKE%hello-nt\hellodll.cpp" /Fo"%OUT%\hellodll.obj" || exit /b 1
 rem No C runtime at all: no security cookie, no stack probes.
 %CC% /nologo /O1 /GS- /W3 /arch:IA32 /c "%SPIKE%ntexports\ntexports.c" /Fo"%OUT%\ntexports.obj" || exit /b 1
@@ -109,6 +111,7 @@ if defined SETVERSION (
     python "%ROOT%\tuatara\tools\apiaudit" set-version --os 3.10 --subsystem 3.10 ^
         "%OUT%\HELLO-NT.EXE" "%OUT%\HELLODLL.DLL" "%OUT%\NTEXPORT.EXE" || exit /b 1
 )
+> "%OUT%\BUILD.TXT" echo %TAG% build %BUILD_ID%
 del "%OUT%\*.obj" "%OUT%\*.lib" "%OUT%\*.exp" 2>nul
 echo === %TAG%: done
 exit /b 0
