@@ -16,13 +16,15 @@ Tuatara takes it further back, to the Windows versions of the 1990s.
 | System | Status | JavaScript JIT | WebAssembly |
 |---|---|---|---|
 | Windows 2000 SP4 | First target | Yes, on CPUs with SSE2 | Yes, with the JIT |
-| Windows NT 4.0 SP6a | Second target | No (NT4 doesn't save SSE state) | No |
-| Windows NT 3.51 SP5 | Stretch goal | No | No |
+| Windows NT 4.0 SP6a | Second target | With [WINSIMD](https://github.com/ages2001/WINSIMD) 1.2 and an SSE2 CPU | With the JIT |
+| Windows NT 3.51 SP5 | Stretch goal | With WINSIMD 1.2 and an SSE2 CPU | With the JIT |
 | Windows XP and later | Should work; not the focus | Yes | Yes |
 
-The minimum CPU is a Pentium Pro (i686). SSE and SSE2 are used only when both
-the CPU and the OS support them. See [supported systems](tuatara/docs/supported-systems.md)
-for the details and limits.
+The minimum CPU is a Pentium Pro (i686). SSE and SSE2 are used only when the
+CPU has them and something saves their registers at thread switches: the OS
+on Windows 2000 and later, or the optional WINSIMD 1.2 driver on NT 4.0 and
+NT 3.51. WINSIMD is a separate project and is never required. See
+[supported systems](tuatara/docs/supported-systems.md) for the details and limits.
 
 ## Layout
 

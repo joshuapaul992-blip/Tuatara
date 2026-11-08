@@ -32,9 +32,13 @@ overview; update it when a milestone's scope changes.
 - **The API audit is the guardrail.** `apiaudit` checks every built binary
   against export lists taken from the real systems. CI fails on any import a
   target OS lacks unless it is allowlisted with a fallback.
-- **CPU features are checked against the OS.** One SEH-guarded probe decides
-  whether SSE may be used; every library's CPU detection goes through it.
-  CPUID alone is not enough on NT 4.0.
+- **CPU features are checked against the OS.** SSE is used only where
+  something saves the registers at thread switches: the OS on Windows 2000
+  and later, or the optional [WINSIMD](https://github.com/ages2001/WINSIMD)
+  1.2 driver on NT 3.51 and NT 4.0. An SEH-guarded probe plus WINSIMD's status
+  key decide this once, and every library's CPU detection goes through that
+  decision. CPUID, or the probe alone, is not enough
+  ([0009](decisions/0009-winsimd.md)).
 - **Software graphics.** Skia/Cairo with the basic compositor, drawn to the
   window with `StretchDIBits`. No Direct2D, DirectWrite or Direct3D.
 - **Fonts.** GDI on Windows 2000; FreeType with bundled fonts on NT 4.0 and
@@ -52,7 +56,7 @@ overview; update it when a milestone's scope changes.
 | **M2** | Headless engine on Windows 2000 | `libxul` loads; xpcshell tests run |
 | **M3** | First browser on Windows 2000 | Front end in `application/tuatara/`, rebranded; classic CSS; software compositing; GDI fonts; WinMM audio; HTTPS sites load |
 | **M3.5** | Front-end speed check | Windows 2000 with the JIT off, as a stand-in for NT 4.0; pick the default UI preset per OS |
-| **M4** | Windows NT 4.0 | FreeType backend and font pack; opaque panels; multi-monitor stubs; `getaddrinfo` fallback |
+| **M4** | Windows NT 4.0 | FreeType backend and font pack; opaque panels; multi-monitor stubs; `getaddrinfo` fallback; JIT with WINSIMD 1.2 passes jit-tests and the XMM stress test, single- and dual-CPU |
 | **M5** | Windows NT 3.51 (stretch) | Winsock 1.1 shim; entropy without CryptoAPI; OLE fallbacks; portable profile |
 | **M6** | Release pipeline | Weekly builds; one installer for NT 3.51 to Windows 11; About This Machine; low-memory defaults |
 
@@ -74,7 +78,8 @@ overview; update it when a milestone's scope changes.
 |---|---|
 | Upstream starts using newer Win32 APIs or C++ features | `apiaudit` in CI on every merge; small, runtime-gated patches |
 | The NT 3.51 loader rejects modern PE files | Tested first, in the M0 spike |
-| JavaScript speed without the JIT | Documented; Classic Tabs preset as the fallback default on NT 4.0 and 3.51 |
+| JavaScript speed without the JIT | Optional WINSIMD 1.2 brings the JIT to NT 4.0 and 3.51; otherwise documented, with Classic Tabs as the fallback default preset |
+| WINSIMD is a young kernel driver | Optional only; Tuatara's own stress testing before it's advertised; status key read defensively |
 | RAM | Low-memory defaults; Large Address Aware for NT 4.0 with `/3GB` |
 | Font backend port | Reuse UXP's FreeType font list (the Android path) |
 | Slow testing on emulators | Capability-emulation mode on modern Windows for most work; VMs to confirm |

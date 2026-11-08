@@ -16,9 +16,14 @@ present, but are never required.
 
 - **Minimum:** Pentium Pro / Pentium II / Athlon (i686, with `cmov` and `cmpxchg8b`).
   The AMD K6 family lacks `cmov` and would need a separate i586 build.
-- **SSE/SSE2:** used only when the CPU has it *and* the OS saves SSE registers.
-  Windows 2000 does; NT 4.0 and NT 3.51 do not, so on them the browser uses x87
-  floating point everywhere, whatever the CPU.
+- **SSE/SSE2:** used only when the CPU has it *and* something saves the SSE
+  registers at thread switches. Windows 2000 does. NT 4.0 and NT 3.51 don't,
+  so there the browser uses x87 floating point, unless the optional
+  [WINSIMD](https://github.com/ages2001/WINSIMD) 1.2 driver is installed and
+  reports that it saves them.
+- **AVX:** before Windows 7 SP1 no Windows saves AVX registers, so AVX is used
+  only when WINSIMD 1.2 reports that it saves them. See
+  [decision 0009](decisions/0009-winsimd.md).
 - **Architectures:** x86 only. The Alpha, MIPS and PowerPC versions of NT are
   out of scope; no current compiler targets them.
 
@@ -26,8 +31,8 @@ present, but are never required.
 
 | Feature | 2000 | NT 4.0 | NT 3.51 |
 |---|---|---|---|
-| JavaScript JIT | Yes, with SSE2 | No (interpreter) | No (interpreter) |
-| WebAssembly | Yes, with the JIT | No | No |
+| JavaScript JIT | Yes, with SSE2 | With WINSIMD 1.2 + SSE2; otherwise interpreter | With WINSIMD 1.2 + SSE2; otherwise interpreter |
+| WebAssembly | Yes, with the JIT | With the JIT | With the JIT |
 | WebGL | No | No | No |
 | Font rendering | GDI | FreeType + bundled fonts | FreeType + bundled fonts |
 | Transparent popups and panels | Yes | Opaque fallback | Opaque fallback |
@@ -46,5 +51,5 @@ installed RAM.
 
 Text-heavy sites (Wikipedia, forums, news, documentation) should be usable
 everywhere. Sites built as large JavaScript applications (video sites, web mail,
-social media) need the JIT, so on NT 4.0 and NT 3.51 expect them to be slow or
-unusable.
+social media) need the JIT, so on NT 4.0 and NT 3.51 without WINSIMD expect
+them to be slow or unusable.

@@ -14,3 +14,4 @@ ones change only by a new record that supersedes them.
 | [0006](0006-versioning.md) | Date-based browser versions, numbered engine versions | Proposed |
 | [0007](0007-toolchain.md) | Toolchain | Open, decided by the M0 spike |
 | [0008](0008-webextensions.md) | WebExtensions | Open |
+| [0009](0009-winsimd.md) | Optional WINSIMD support; SIMD allowed only when registers are saved | Accepted |
