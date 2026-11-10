@@ -37,23 +37,8 @@ export PATH="$work/bin:$PATH"
 
 make_extra=()
 if [ "$mode" = ntcompat ]; then
-    ntc="$repo/ntcompat"
-    nobj="$work/ntcompat-obj"
-    mkdir -p "$nobj"
-    (
-        cd "$nobj"
-        for f in thunks/thunks.c thunks/lazy.c core/osversion.c cpu/simd_policy.c crypto/entropy.c; do
-            cl -nologo -c -O2 -MT -arch:IA32 -W3 -Fo"$(basename "$f" .c).obj" "$(cygpath -w "$ntc/$f")"
-        done
-        for a in imp_x86 imp_noyy_x86 imp_lazy_x86; do
-            ml -nologo -c -coff -safeseh -Fo"$a.obj" "$(cygpath -w "$ntc/thunks/$a.asm")"
-        done
-    )
-    LINK=""
-    for o in "$nobj"/*.obj; do LINK="$LINK \"$(cygpath -w "$o")\""; done
-    export LINK="$LINK advapi32.lib"
-    echo "LINK=$LINK"
-    make_extra+=(XCFLAGS="-DTUATARA_NTCOMPAT -I$(cygpath -m "$ntc")")
+    . "$repo/tuatara/m1/ntcompat-env.sh" "$repo" "$work/ntcompat-obj"
+    make_extra+=(XCFLAGS="-DTUATARA_NTCOMPAT -I$NTCOMPAT_DIR")
 fi
 
 cd "$work/nss"
@@ -95,7 +80,7 @@ for tool in tstclnt certutil selfserv; do
 done
 if [ "$mode" = ntcompat ]; then
     # link.exe won't write PE versions below 5.01; NT 3.51 needs 3.10.
-    python "$(cygpath -w "$repo/tuatara/tools/apiaudit")" set-version --os 3.10 --subsystem 3.10 \
+    python "$(winpath "$repo/tuatara/tools/apiaudit")" set-version --os 3.10 --subsystem 3.10 \
         "$work"/out/*.dll "$work"/out/*.exe
 fi
 cp "$repo/tuatara/m1/NSSTEST.CMD" "$work/out/"

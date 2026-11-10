@@ -1,0 +1,96 @@
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+# M1: build SpiderMonkey's shell from the tree for i686 (x87, static CRT,
+# ntcompat), record its imports, and run part of its jit-tests in
+# interpreter mode on the runner.
+
+name: Tuatara M1 SpiderMonkey
+
+on:
+  push:
+    branches: [tuatara]
+    paths: ["js/**", "mfbt/**", "ntcompat/**", "python/mozbuild/**", "build/**",
+            "config/**", "tuatara/m1/build-js.sh", "tuatara/m1/ntcompat-env.sh",
+            ".github/workflows/tuatara-m1-js.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  MOZILLABUILD_URL: https://ftp.mozilla.org/pub/mozilla/libraries/win32/MozillaBuildSetup-3.4.exe
+  MOZILLABUILD_SHA256: CEC9AE47A939445783EC9EAA8425654D2417906B59E7D8FF6538D91C8F2B21CE
+
+jobs:
+  js:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Name the build after its commit
+        shell: bash
+        run: echo "BUILD_ID=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+
+      - name: Install MozillaBuild 3.4 (Python 2.7, MSYS, autoconf 2.13; pinned by hash)
+        shell: pwsh
+        run: |
+          Invoke-WebRequest $env:MOZILLABUILD_URL -OutFile mb.exe
+          $hash = (Get-FileHash mb.exe -Algorithm SHA256).Hash
+          if ($hash -ne $env:MOZILLABUILD_SHA256) { throw "MozillaBuild hash mismatch: $hash" }
+          Start-Process -Wait -FilePath .\mb.exe -ArgumentList '/S', '/D=C:\mozilla-build'
+          Get-ChildItem C:\mozilla-build | ForEach-Object { $_.Name }
+
+      - uses: ilammy/msvc-dev-cmd@v1.13.0
+        with:
+          arch: x86
+
+      - name: Build the shell
+        shell: cmd
+        run: |
+          set PATH=C:\mozilla-build\bin;C:\mozilla-build\msys\local\bin;C:\mozilla-build\msys\bin;C:\mozilla-build\python;C:\mozilla-build\python\Scripts;%PATH%
+          C:\mozilla-build\msys\bin\bash.exe -c "bash tuatara/m1/build-js.sh $(pwd) $(pwd)/work"
+
+      - name: Record imports and PE headers
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p out
+          [ -d work/out ] && cp -r work/out/. out/ || true
+          for f in out/*.exe out/*.dll; do
+            [ -f "$f" ] && python tuatara/tools/apiaudit dump "$f"
+          done > out/IMPORTS.TXT 2>&1 || true
+          grep -E "^import|^TLS|subsystem" out/IMPORTS.TXT | sort | uniq -c
+          python ntcompat/thunks/gen.py --check-imports out/js.exe
+
+      - name: Smoke test, natively and emulating NT 3.51
+        if: always()
+        shell: bash
+        run: |
+          set -e
+          ./out/js.exe -e 'print("hello from js.exe: " + (6 * 7) + ", " + Math.sqrt(2) + ", " + JSON.stringify({a: [1, 2.5]}))'
+          NTCOMPAT_EMULATE=nt351 ./out/js.exe -e 'print("as NT 3.51: " + [3, 1, 2].sort() + ", " + (0.1 + 0.2))'
+
+      - name: jit-tests (basic), interpreter only
+        if: always()
+        shell: cmd
+        run: |
+          set PATH=C:\mozilla-build\python;%PATH%
+          python js\src\jit-test\jit_test.py --no-progress --format=automation --jitflags=interp --timeout=120 out\js.exe basic > jit-tests.log 2>&1
+          set RC=%ERRORLEVEL%
+          type jit-tests.log | findstr /r /c:"^TEST-UNEXPECTED" /c:"^Result summary" /c:"^Passed:" /c:"^Failed:"
+          copy jit-tests.log out\ > NUL
+          exit /b %RC%
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tuatara-m1-js-${{ env.BUILD_ID }}
+          path: |
+            out/
+            work/configure.log
+            work/build.log
+          if-no-files-found: warn

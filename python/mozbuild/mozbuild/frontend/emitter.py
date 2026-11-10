@@ -840,7 +840,11 @@ class TreeMetadataEmitter(LoggingMixin):
         # possible.
         if (context.config.substs.get('OS_ARCH') == 'WINNT' and
                 not context.config.substs.get('GNU_CC')):
-            use_static_lib = (context.get('USE_STATIC_LIBS') and
+            # Tuatara: TUATARA_STATIC_RTL in the environment makes every
+            # directory use the static C runtime (-MT): Windows NT 3.51 and
+            # NT 4.0 can't run the VS2015+ runtime DLLs.
+            use_static_lib = ((context.get('USE_STATIC_LIBS') or
+                               os.environ.get('TUATARA_STATIC_RTL')) and
                               not context.config.substs.get('MOZ_ASAN'))
             rtl_flag = '-MT' if use_static_lib else '-MD'
             if (context.config.substs.get('MOZ_DEBUG') and
