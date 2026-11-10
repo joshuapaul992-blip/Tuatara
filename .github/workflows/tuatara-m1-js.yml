@@ -93,4 +93,5 @@ jobs:
             out/
             work/configure.log
             work/build.log
+            work/link-verbose.log
           if-no-files-found: warn

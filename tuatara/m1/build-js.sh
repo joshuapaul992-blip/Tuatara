@@ -59,6 +59,12 @@ tail -n 15 "$work/configure.log"
 mozmake -j"$(nproc 2>/dev/null || echo 4)" > "$work/build.log" 2>&1 || {
     grep -nE " error |error C[0-9]+|LNK[0-9]+|fatal error|\*\*\*" "$work/build.log" | head -40
     tail -n 60 "$work/build.log"
+    if grep -q "LNK1107" "$work/build.log"; then
+        # Which file does link.exe choke on? Re-run one failing link verbosely.
+        echo "=== re-running the mozglue link with /VERBOSE"
+        LINK="$LINK /VERBOSE" mozmake -C mozglue/build > "$work/link-verbose.log" 2>&1 || true
+        grep -nE "Searching|Processing|LNK1107|Loading|Opened" "$work/link-verbose.log" | tail -40
+    fi
     exit 1
 }
 tail -n 10 "$work/build.log"
