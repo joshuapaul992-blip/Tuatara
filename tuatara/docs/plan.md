@@ -82,7 +82,7 @@ overview; update it when a milestone's scope changes.
 | NSS randomness on NT 3.51 (`RtlGenRandom` fallback: CryptoAPI, then ntcompat's pool) | Done |
 | NSS SIMD (AES-NI, PCLMUL, AVX, SSSE3, mpi SSE2) follows the SIMD policy | Done |
 | NSS on real NT 3.51 (`NSSTEST.CMD`) | To run |
-| SpiderMonkey shell, interpreter-only, jit-tests | To do |
+| SpiderMonkey shell (`js.exe`), JIT gated by the SIMD policy, jit-tests in interpreter mode | In progress: configure passes and compilation runs in CI ([`build-js.sh`](../m1/build-js.sh)); DLL links (`mozglue.dll`, `nspr4.dll`) fail with LNK1107, cause not yet found (the ntcompat objects themselves check out). Fixed on the way: ICU wasn't configured for standalone builds, shared-only JS on Windows, C++17 for ICU, MozillaBuild's MSYS mangling paths in `LINK` |
 | ICU and the allocator (mozjemalloc) self-tests | To do |
 
 ## Risks
