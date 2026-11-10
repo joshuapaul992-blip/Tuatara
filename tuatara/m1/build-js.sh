@@ -19,6 +19,18 @@ work=$2
 mkdir -p "$work/out"
 work=$(cd "$work" && pwd)
 
+# The runner's PATH holds other toolchains that configure would pick up
+# (Strawberry Perl's pkg-config script, MinGW's gcc, Git's Unix tools).
+clean_path=
+IFS=: read -r -a _entries <<< "$PATH"
+for _e in "${_entries[@]}"; do
+    case "$(echo "$_e" | tr 'A-Z' 'a-z')" in
+        *strawberry*|*mingw64*|*/git/usr/bin*|*/git/mingw64*|*cygwin*|*/msys64/*) ;;
+        *) clean_path="${clean_path:+$clean_path:}$_e" ;;
+    esac
+done
+export PATH="$clean_path"
+
 . "$repo/tuatara/m1/ntcompat-env.sh" "$repo" "$work/ntcompat-obj"
 export TUATARA_STATIC_RTL=1
 # The JIT's CPU detection follows the SIMD policy (TUATARA_NTCOMPAT).
