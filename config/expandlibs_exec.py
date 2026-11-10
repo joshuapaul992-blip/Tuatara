@@ -335,6 +335,12 @@ def main(args, proc_callback=None):
 
         if options.verbose:
             print_command(sys.stderr, args)
+        # Tuatara: on Windows, give the program path with backslashes. With
+        # "c:/PROGRA~1/.../link.exe" as the first token, link.exe 14.44 read
+        # its own executable as an input ("LNK1107: invalid or corrupt file"
+        # naming link.exe); the same link run by hand worked.
+        if sys.platform == 'win32' and args and '/' in args[0]:
+            args[0] = os.path.normpath(args[0])
         try:
             proc = subprocess.Popen(args, stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
             if proc_callback:
