@@ -44,10 +44,12 @@ js_option('--disable-shared-js', default=building_js,
 js_option('--disable-export-js', default=building_js,
           help='Do not mark JS symbols as DLL exported/visible')
 
-@depends('--disable-shared-js', '--disable-export-js', target)
-def shared_js(shared_js, export_js, target):
+@depends('--disable-shared-js', '--disable-export-js', target, building_js)
+def shared_js(shared_js, export_js, target, building_js):
     # We want shared JS always be enabled on Windows regardless of the enable bool.
-    if target.os == 'WINNT':
+    # Tuatara: except in standalone SpiderMonkey builds, whose shell links
+    # JS statically (js/src/shell/moz.build uses "static:js").
+    if target.os == 'WINNT' and not building_js:
         return True
     if shared_js:
         if not export_js:
@@ -64,18 +66,20 @@ def exportable_js_api(shared_js, export_js):
 
 set_define('STATIC_EXPORTABLE_JS_API', exportable_js_api)
 
-@depends('--disable-shared-js', '--disable-export-js', target)
-def static_js_api(shared_js, export_js, target):
-    # Do not build JS as a static library on Windows, regardless of enable bool.
-    if (target.os != 'WINNT') and not shared_js and not export_js:
+@depends('--disable-shared-js', '--disable-export-js', target, building_js)
+def static_js_api(shared_js, export_js, target, building_js):
+    # Do not build JS as a static library on Windows, regardless of enable bool
+    # (Tuatara: except in standalone SpiderMonkey builds).
+    if (target.os != 'WINNT' or building_js) and not shared_js and not export_js:
         return True
 
 set_define('STATIC_JS_API', static_js_api)
 
-@depends('--disable-shared-js', target)
-def static_js(value, target):
-    # Do not build JS as a static library on Windows, regardless of enable bool.
-    if (target.os != 'WINNT') and not value:
+@depends('--disable-shared-js', target, building_js)
+def static_js(value, target, building_js):
+    # Do not build JS as a static library on Windows, regardless of enable bool
+    # (Tuatara: except in standalone SpiderMonkey builds).
+    if (target.os != 'WINNT' or building_js) and not value:
         return True
 
 set_define('MOZ_STATIC_JS', static_js)
