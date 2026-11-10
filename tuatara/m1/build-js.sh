@@ -10,8 +10,8 @@
 #
 #   build-js.sh REPO_ROOT WORK_DIR
 #
-# First pass: no jemalloc and no ICU (Intl), to keep the build small. The JIT
-# stays in; whether it may run is decided at runtime.
+# First pass without jemalloc. ICU (Intl) is always built in this tree. The
+# JIT stays in; whether it may run is decided at runtime.
 
 set -euo pipefail
 repo=$1
@@ -34,7 +34,7 @@ cd "$work/js-obj"
 "$repo/js/src/configure" \
     --target=i686-pc-mingw32 --host=i686-pc-mingw32 \
     --enable-optimize --disable-debug \
-    --disable-jemalloc --without-intl-api \
+    --disable-jemalloc \
     > "$work/configure.log" 2>&1 || {
         tail -n 80 "$work/configure.log"
         tail -n 80 config.log 2>/dev/null || true
