@@ -33,6 +33,21 @@ export PATH="$clean_path"
 
 . "$repo/tuatara/m1/ntcompat-env.sh" "$repo" "$work/ntcompat-obj"
 export TUATARA_STATIC_RTL=1
+# Sanity check: every ntcompat object readable, and a trivial DLL links
+# with them (DLL links failed with LNK1107 before any input was processed).
+(
+    cd "$work/ntcompat-obj"
+    for o in *.obj; do
+        dumpbin -nologo -headers "$o" > /dev/null 2>&1 && echo "ok  $o" || echo "BAD $o"
+    done
+    printf 'int __stdcall DllMain(void *a, unsigned b, void *c) { return 1; }\n' > dlltest.c
+    cl -nologo -LD -MT dlltest.c -Fedlltest-with.dll > dlltest-with.log 2>&1 &&
+        echo "trivial DLL links with ntcompat" || { echo "trivial DLL fails with ntcompat:"; cat dlltest-with.log; }
+    LINK= cl -nologo -LD -MT dlltest.c -Fedlltest-without.dll > dlltest-without.log 2>&1 &&
+        echo "trivial DLL links without ntcompat" || { echo "trivial DLL fails without ntcompat:"; cat dlltest-without.log; }
+    rm -f dlltest*.dll dlltest*.lib dlltest*.exp dlltest.obj
+)
+
 # The JIT's CPU detection follows the SIMD policy (TUATARA_NTCOMPAT).
 export CFLAGS="-DTUATARA_NTCOMPAT -I$NTCOMPAT_DIR"
 # Nothing in the tree sets the C++ standard; MSVC defaults to C++14 and the
