@@ -35,3 +35,4 @@ NTCOMPAT_LAZY(WSAGetLastError, "ws2_32.dll@4.0|wsock32.dll@3.10", 0x0000276Bu, 1
 NTCOMPAT_LAZY(WSAStartup, "ws2_32.dll@4.0|wsock32.dll@3.10", 0x0000276Bu, 10091u)
 NTCOMPAT_LAZY(WSACleanup, "ws2_32.dll@4.0|wsock32.dll@3.10", 0xFFFFFFFFu, 10091u)
 NTCOMPAT_LAZY(__WSAFDIsSet, "ws2_32.dll@4.0|wsock32.dll@3.10", 0x00000000u, 10091u)
+NTCOMPAT_LAZY(GetProcessMemoryInfo, "psapi.dll@4.0", 0x00000000u, 120u)

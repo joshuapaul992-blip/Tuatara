@@ -69,5 +69,6 @@ cp dist/bin/*.dll "$work/out/" 2>/dev/null || true
 py3=$(command -v python3 2>/dev/null || echo /c/mozilla-build/python3/python3.exe)
 "$py3" "$(winpath "$repo/tuatara/tools/apiaudit")" set-version --os 3.10 --subsystem 3.10 \
     "$work"/out/*.exe $(ls "$work"/out/*.dll 2>/dev/null || true)
+cp "$repo/tuatara/m1/JSTEST.CMD" "$repo/tuatara/m1/JSTEST.JS" "$work/out/"
 echo "SpiderMonkey shell build ${BUILD_ID:-local}" > "$work/out/BUILD.TXT"
 ls -la "$work/out"

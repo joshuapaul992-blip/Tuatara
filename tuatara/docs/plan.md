@@ -82,7 +82,8 @@ overview; update it when a milestone's scope changes.
 | NSS randomness on NT 3.51 (`RtlGenRandom` fallback: CryptoAPI, then ntcompat's pool) | Done |
 | NSS SIMD (AES-NI, PCLMUL, AVX, SSSE3, mpi SSE2) follows the SIMD policy | Done |
 | NSS on real NT 3.51 (`NSSTEST.CMD`) | To run |
-| SpiderMonkey shell (`js.exe`), JIT gated by the SIMD policy, jit-tests in interpreter mode | In progress: configure passes and compilation runs in CI ([`build-js.sh`](../m1/build-js.sh)); DLL links (`mozglue.dll`, `nspr4.dll`) fail with LNK1107, cause not yet found (the ntcompat objects themselves check out). Fixed on the way: ICU wasn't configured for standalone builds, shared-only JS on Windows, C++17 for ICU, MozillaBuild's MSYS mangling paths in `LINK` |
+| SpiderMonkey shell (`js.exe`), JIT gated by the SIMD policy, jit-tests in interpreter mode | Built in CI ([`build-js.sh`](../m1/build-js.sh)): `js.exe` plus `mozglue`, `nspr4`, `plc4`, `plds4` and `icu78` DLLs, PE 3.10, no thunked function imported. Runs natively and with `NTCOMPAT_EMULATE=nt351`. jit-tests `basic` in interpreter mode: 1330 pass; 7 fail for tree reasons (harness without `skip-if`, parser positions, `toSource`), listed with reasons in [`jit-tests-known-failures.txt`](../m1/jit-tests-known-failures.txt), still to be compared with a Linux build. Fixed on the way: ICU wasn't configured or linked for standalone builds, shared-only JS on Windows, C++17 for ICU, MozillaBuild's MSYS mangling paths, the tree's `LINK` make variable overriding ours (now `_LINK_`), `moz_malloc_size_of` missing under the static CRT, CRLF checkouts |
+| SpiderMonkey on real NT 3.51 | To run |
 | ICU and the allocator (mozjemalloc) self-tests | To do |
 
 ## Risks

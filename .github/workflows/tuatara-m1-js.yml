@@ -13,6 +13,7 @@ on:
     branches: [tuatara]
     paths: ["js/**", "mfbt/**", "memory/**", "mozglue/**", "intl/icu/**", "ntcompat/**", "python/mozbuild/**", "build/**",
             "config/**", "tuatara/m1/build-js.sh", "tuatara/m1/ntcompat-env.sh",
+            "tuatara/m1/jit-tests-known-failures.txt", "tuatara/m1/JSTEST.*",
             ".github/workflows/tuatara-m1-js.yml"]
   workflow_dispatch:
 
@@ -69,7 +70,7 @@ jobs:
             [ -f "$f" ] && python tuatara/tools/apiaudit dump "$f"
           done > out/IMPORTS.TXT 2>&1 || true
           grep -E "^import|^TLS|subsystem" out/IMPORTS.TXT | sort | uniq -c
-          python ntcompat/thunks/gen.py --check-imports out/js.exe
+          python ntcompat/thunks/gen.py --check-imports out/*.exe out/*.dll
 
       - name: Smoke test, natively and emulating NT 3.51
         if: always()
@@ -78,17 +79,27 @@ jobs:
           set -e
           ./out/js.exe -e 'print("hello from js.exe: " + (6 * 7) + ", " + Math.sqrt(2) + ", " + JSON.stringify({a: [1, 2.5]}))'
           NTCOMPAT_EMULATE=nt351 ./out/js.exe -e 'print("as NT 3.51: " + [3, 1, 2].sort() + ", " + (0.1 + 0.2))'
+          # The checks the real machines run (JSTEST.CMD).
+          (cd out && ./js.exe JSTEST.JS)
+          (cd out && NTCOMPAT_EMULATE=nt351 ./js.exe JSTEST.JS)
 
       - name: jit-tests (basic), interpreter only
         if: always()
-        shell: cmd
+        shell: bash
         run: |
-          set PATH=C:\mozilla-build\python;%PATH%
-          python js\src\jit-test\jit_test.py --no-progress --format=automation --jitflags=interp --timeout=120 out\js.exe basic > jit-tests.log 2>&1
-          set RC=%ERRORLEVEL%
-          type jit-tests.log | findstr /r /c:"^TEST-UNEXPECTED" /c:"^Result summary" /c:"^Passed:" /c:"^Failed:"
-          copy jit-tests.log out\ > NUL
-          exit /b %RC%
+          # jit_test.py runs on MozillaBuild's Python 2.7. Known failures
+          # (with reasons) are listed in tuatara/m1/jit-tests-known-failures.txt.
+          excludes=()
+          while read -r t; do
+            excludes+=(-x "$t")
+          done < <(grep -vE '^\s*(#|$)' tuatara/m1/jit-tests-known-failures.txt)
+          rc=0
+          /c/mozilla-build/python/python.exe js/src/jit-test/jit_test.py \
+            --no-progress --format=automation --jitflags=interp --timeout=120 \
+            "${excludes[@]}" out/js.exe basic > jit-tests.log 2>&1 || rc=$?
+          grep -E "^TEST-UNEXPECTED|^Result summary|^Passed:|^Failed:" jit-tests.log || true
+          cp jit-tests.log out/
+          exit $rc
 
       - uses: actions/upload-artifact@v4
         if: always()

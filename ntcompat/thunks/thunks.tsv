@@ -71,3 +71,5 @@ ws2_32|wsock32 WSAGetLastError                      0     4.0    lazy  fail=1009
 ws2_32|wsock32 WSAStartup                           8     4.0    lazy  fail=10091 err=10091
 ws2_32|wsock32 WSACleanup                           0     4.0    lazy  fail=-1 err=10091
 ws2_32|wsock32 __WSAFDIsSet                         8     4.0    lazy  fail=0 err=10091
+# PSAPI: a redistributable on NT 4.0 (not always installed), absent on NT 3.51.
+psapi       GetProcessMemoryInfo                    12    4.0    lazy  fail=0 err=120
