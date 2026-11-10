@@ -76,16 +76,32 @@ mozmake -j"$(nproc 2>/dev/null || echo 4)" > "$work/build.log" 2>&1 || {
     tail -n 60 "$work/build.log"
     if grep -q "LNK1107" "$work/build.log"; then
         # Which file does link.exe choke on? Re-run one failing link verbosely.
-        echo "=== the mozglue link's inputs"
-        for o in ../../memory/mozalloc/winheap.obj ../../memory/mozalloc/Unified_cpp_memory_mozalloc0.obj \
-                 ../misc/StackWalk.obj ../misc/TimeStamp.obj ../misc/TimeStamp_windows.obj \
-                 ../../mfbt/Compression.obj ../../mfbt/Decimal.obj ../../mfbt/Unified_cpp_mfbt0.obj \
-                 mozglue.def; do
-            (cd mozglue/build && dumpbin -nologo -headers "$o" > /dev/null 2>&1 && echo "ok  $o" || echo "BAD $o")
-        done
-        echo "=== re-running the mozglue link without ntcompat (LINK unset)"
-        LINK= mozmake -C mozglue/build > "$work/link-verbose.log" 2>&1 && echo "links without ntcompat" ||
-            { echo "fails without ntcompat too"; grep -n "LNK" "$work/link-verbose.log" | head; }
+        # The mozglue link fails even without ntcompat, and its inputs all pass
+        # dumpbin. link.exe names *itself* as the corrupt file. Run the same
+        # link by hand, adding the tree's options group by group.
+        echo "=== link.exe: $(type -p link)"
+        echo "=== LIB as native programs see it:"; cmd //c "echo %LIB%" 2>/dev/null || true
+        (
+            cd mozglue/build
+            objs="../../memory/mozalloc/winheap.obj ../../memory/mozalloc/Unified_cpp_memory_mozalloc0.obj
+                  ../misc/StackWalk.obj ../misc/TimeStamp.obj ../misc/TimeStamp_windows.obj
+                  ../../mfbt/Compression.obj ../../mfbt/Decimal.obj ../../mfbt/Unified_cpp_mfbt0.obj"
+            libs="kernel32.lib user32.lib gdi32.lib winmm.lib wsock32.lib advapi32.lib psapi.lib dbghelp.lib delayimp.lib"
+            try() {
+                echo "=== link $*"
+                LINK= link -NOLOGO -DLL -OUT:t.dll -SUBSYSTEM:WINDOWS,5.01 -MACHINE:X86 "$@" $objs $libs 2>&1 |
+                    grep -vE "^ +Creating|^$" | tail -6
+                rm -f t.dll t.lib t.exp t.pdb t.ilk
+            }
+            try
+            try -DEF:mozglue.def
+            try -DEF:mozglue.def -DEBUG -DEBUGTYPE:CV -PDB:t.pdb
+            try -DEF:mozglue.def -LARGEADDRESSAWARE -NXCOMPAT -DYNAMICBASE -SAFESEH
+            try -DEF:mozglue.def -DELAYLOAD:dbghelp.dll -DELAYLOAD:user32.dll -DELAYLOAD:version.dll
+            try -DEF:mozglue.def -OPT:REF
+            try -DEF:mozglue.def -VERBOSE
+        ) > "$work/link-verbose.log" 2>&1
+        grep -vE "^ +(Searching|Found|Referenced|Loaded|Processed)" "$work/link-verbose.log" | head -60
     fi
     exit 1
 }
