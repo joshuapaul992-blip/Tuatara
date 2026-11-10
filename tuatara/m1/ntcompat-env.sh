@@ -10,8 +10,12 @@
 #
 # It compiles ntcompat (the import thunks for NT 3.51/4.0, including the
 # "noyy" and "lazy" sets, the SIMD policy and the entropy fallback) into
-# OBJ_DIR and exports LINK so link.exe adds those objects to every link,
-# whatever build system drives it. It also defines:
+# OBJ_DIR and exports _LINK_ so link.exe adds those objects to every link,
+# whatever build system drives it. (Not LINK: Mozilla's configure defines a
+# LINK variable, the linker's path, and make then exports that in place of
+# ours, so link.exe read its own executable as an input: LNK1107. link.exe
+# appends _LINK_; object files are loaded wherever they appear, so the
+# __imp_ definitions still take precedence over the import libraries.) It also defines:
 #
 #   winpath PATH        print PATH as a Windows path (D:\...)
 #   winpath_m PATH      the same with forward slashes (D:/...)
@@ -48,13 +52,11 @@ mkdir -p "$_ntc_obj"
 # and "d:/a/x.obj" became "d;C:\mozilla-build\msys\a\x.obj". A value that
 # starts with a backslash and has no colon is left alone; it resolves on the
 # current drive, which is where the build runs.
-LINK=""
+_ntc_link=""
 for _o in "$_ntc_obj"/*.obj; do
     _p=$(winpath "$_o")
-    LINK="$LINK ${_p#?:}"
+    _ntc_link="$_ntc_link ${_p#?:}"
 done
-export LINK="$LINK advapi32.lib"
+export _LINK_="$_ntc_link advapi32.lib"
 NTCOMPAT_DIR=$(winpath_m "$_ntc_repo/ntcompat")
-echo "ntcompat: LINK=$LINK"
-echo "ntcompat: as native programs see it:"
-cmd //c "echo %LINK%" 2>/dev/null || true
+echo "ntcompat: _LINK_=$_LINK_"
