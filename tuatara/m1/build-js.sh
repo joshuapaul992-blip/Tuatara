@@ -65,7 +65,9 @@ tail -n 10 "$work/build.log"
 
 cp dist/bin/js.exe "$work/out/"
 cp dist/bin/*.dll "$work/out/" 2>/dev/null || true
-python "$(winpath "$repo/tuatara/tools/apiaudit")" set-version --os 3.10 --subsystem 3.10 \
+# apiaudit needs Python 3; MozillaBuild's "python" is 2.7.
+py3=$(command -v python3 2>/dev/null || echo /c/mozilla-build/python3/python3.exe)
+"$py3" "$(winpath "$repo/tuatara/tools/apiaudit")" set-version --os 3.10 --subsystem 3.10 \
     "$work"/out/*.exe $(ls "$work"/out/*.dll 2>/dev/null || true)
 echo "SpiderMonkey shell build ${BUILD_ID:-local}" > "$work/out/BUILD.TXT"
 ls -la "$work/out"

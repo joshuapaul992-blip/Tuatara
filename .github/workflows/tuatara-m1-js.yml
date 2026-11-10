@@ -11,7 +11,7 @@ name: Tuatara M1 SpiderMonkey
 on:
   push:
     branches: [tuatara]
-    paths: ["js/**", "mfbt/**", "ntcompat/**", "python/mozbuild/**", "build/**",
+    paths: ["js/**", "mfbt/**", "memory/**", "mozglue/**", "intl/icu/**", "ntcompat/**", "python/mozbuild/**", "build/**",
             "config/**", "tuatara/m1/build-js.sh", "tuatara/m1/ntcompat-env.sh",
             ".github/workflows/tuatara-m1-js.yml"]
   workflow_dispatch:
@@ -27,6 +27,11 @@ jobs:
   js:
     runs-on: windows-2022
     steps:
+      # The runner's Git converts to CRLF; the tree (and tests that compare
+      # source text, line and column numbers) expects LF.
+      - name: Check out with LF line endings
+        run: git config --global core.autocrlf false
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
