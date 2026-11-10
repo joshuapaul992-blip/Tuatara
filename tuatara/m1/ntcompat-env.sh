@@ -43,8 +43,12 @@ mkdir -p "$_ntc_obj"
     done
 ) || { echo "ntcompat-env.sh: building ntcompat failed" >&2; return 1; }
 
+# Forward slashes: MozillaBuild's older MSYS rewrites environment values
+# that look like paths (d:\... has a colon) when it starts native programs.
 LINK=""
-for _o in "$_ntc_obj"/*.obj; do LINK="$LINK \"$(winpath "$_o")\""; done
+for _o in "$_ntc_obj"/*.obj; do LINK="$LINK $(winpath_m "$_o")"; done
 export LINK="$LINK advapi32.lib"
 NTCOMPAT_DIR=$(winpath_m "$_ntc_repo/ntcompat")
 echo "ntcompat: LINK=$LINK"
+echo "ntcompat: as native programs see it:"
+cmd //c "echo %LINK%" 2>/dev/null || true

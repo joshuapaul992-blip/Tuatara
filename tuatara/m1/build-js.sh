@@ -35,7 +35,9 @@ export PATH="$clean_path"
 export TUATARA_STATIC_RTL=1
 # The JIT's CPU detection follows the SIMD policy (TUATARA_NTCOMPAT).
 export CFLAGS="-DTUATARA_NTCOMPAT -I$NTCOMPAT_DIR"
-export CXXFLAGS="$CFLAGS"
+# Nothing in the tree sets the C++ standard; MSVC defaults to C++14 and the
+# in-tree ICU needs C++17.
+export CXXFLAGS="$CFLAGS -std:c++17"
 
 # configure and old-configure are generated from configure.in and
 # old-configure.in by autoconf 2.13.
