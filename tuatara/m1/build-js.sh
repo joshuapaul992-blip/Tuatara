@@ -76,9 +76,16 @@ mozmake -j"$(nproc 2>/dev/null || echo 4)" > "$work/build.log" 2>&1 || {
     tail -n 60 "$work/build.log"
     if grep -q "LNK1107" "$work/build.log"; then
         # Which file does link.exe choke on? Re-run one failing link verbosely.
-        echo "=== re-running the mozglue link with /VERBOSE"
-        LINK="$LINK /VERBOSE" mozmake -C mozglue/build > "$work/link-verbose.log" 2>&1 || true
-        grep -nE "Searching|Processing|LNK1107|Loading|Opened" "$work/link-verbose.log" | tail -40
+        echo "=== the mozglue link's inputs"
+        for o in ../../memory/mozalloc/winheap.obj ../../memory/mozalloc/Unified_cpp_memory_mozalloc0.obj \
+                 ../misc/StackWalk.obj ../misc/TimeStamp.obj ../misc/TimeStamp_windows.obj \
+                 ../../mfbt/Compression.obj ../../mfbt/Decimal.obj ../../mfbt/Unified_cpp_mfbt0.obj \
+                 mozglue.def; do
+            (cd mozglue/build && dumpbin -nologo -headers "$o" > /dev/null 2>&1 && echo "ok  $o" || echo "BAD $o")
+        done
+        echo "=== re-running the mozglue link without ntcompat (LINK unset)"
+        LINK= mozmake -C mozglue/build > "$work/link-verbose.log" 2>&1 && echo "links without ntcompat" ||
+            { echo "fails without ntcompat too"; grep -n "LNK" "$work/link-verbose.log" | head; }
     fi
     exit 1
 }
