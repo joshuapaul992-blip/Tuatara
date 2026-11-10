@@ -2155,6 +2155,25 @@ AC_SUBST(MOZ_PKG_SPECIAL)
 AC_SUBST(MOZILLA_OFFICIAL)
 AC_SUBST(MC_OFFICIAL)
 
+dnl ========================================================
+dnl ICU (Intl is always on in this tree)
+dnl ========================================================
+dnl Tuatara: the top-level old-configure.in does this, but standalone
+dnl SpiderMonkey builds never ran it, so USE_ICU stayed unset while
+dnl js/src/moz.build always links ICU.
+
+MOZ_ARG_ENABLE_BOOL(shared-icu,
+[  --enable-shared-icu           Build ICU as a shared library],
+    MOZ_SHARED_ICU=1,
+    MOZ_SHARED_ICU=)
+
+# As in the top-level configure: shared ICU on Windows.
+if test "$OS_ARCH" = "WINNT"; then
+  MOZ_SHARED_ICU=1
+fi
+
+MOZ_CONFIG_ICU()
+
 dnl Echo the CFLAGS to remove extra whitespace.
 CFLAGS=`echo \
 	$_WARNINGS_CFLAGS \
