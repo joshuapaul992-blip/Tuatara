@@ -88,10 +88,12 @@ mozmake -j"$(nproc 2>/dev/null || echo 4)" > "$work/build.log" 2>&1 || {
                   ../../mfbt/Compression.obj ../../mfbt/Decimal.obj ../../mfbt/Unified_cpp_mfbt0.obj"
             libs="kernel32.lib user32.lib gdi32.lib winmm.lib wsock32.lib advapi32.lib psapi.lib dbghelp.lib delayimp.lib"
             try() {
-                echo "=== link $*"
-                LINK= link -NOLOGO -DLL -OUT:t.dll -SUBSYSTEM:WINDOWS,5.01 -MACHINE:X86 "$@" $objs $libs 2>&1 |
-                    grep -vE "^ +Creating|^$" | tail -6
-                rm -f t.dll t.lib t.exp t.pdb t.ilk
+                local rc=0
+                LINK= link -NOLOGO -DLL -OUT:t.dll -SUBSYSTEM:WINDOWS,5.01 -MACHINE:X86 "$@" $objs $libs \
+                    > t.out 2>&1 || rc=$?
+                echo "=== exit $rc: link $*"
+                grep -vE "^ +Creating|^$" t.out | tail -6 || true
+                rm -f t.dll t.lib t.exp t.pdb t.ilk t.out
             }
             try
             try -DEF:mozglue.def
@@ -99,9 +101,12 @@ mozmake -j"$(nproc 2>/dev/null || echo 4)" > "$work/build.log" 2>&1 || {
             try -DEF:mozglue.def -LARGEADDRESSAWARE -NXCOMPAT -DYNAMICBASE -SAFESEH
             try -DEF:mozglue.def -DELAYLOAD:dbghelp.dll -DELAYLOAD:user32.dll -DELAYLOAD:version.dll
             try -DEF:mozglue.def -OPT:REF
+            try -DEF:mozglue.def -LARGEADDRESSAWARE -NXCOMPAT -DYNAMICBASE -SAFESEH -DEBUG \
+                -DEBUGTYPE:CV -DEBUG -OPT:REF -DELAYLOAD:dbghelp.dll -DELAYLOAD:user32.dll \
+                -DELAYLOAD:version.dll -PDB:t.pdb
             try -DEF:mozglue.def -VERBOSE
-        ) > "$work/link-verbose.log" 2>&1
-        grep -vE "^ +(Searching|Found|Referenced|Loaded|Processed)" "$work/link-verbose.log" | head -60
+        ) > "$work/link-verbose.log" 2>&1 || true
+        grep -vE "^ +(Searching|Found|Referenced|Loaded|Processed)" "$work/link-verbose.log" | head -60 || true
     fi
     exit 1
 }
