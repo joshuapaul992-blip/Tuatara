@@ -6,6 +6,12 @@
 #include "gc/Marking.h"
 #include "jit/Disassembler.h"
 #include "jit/JitCompartment.h"
+
+#ifdef TUATARA_NTCOMPAT
+// Tuatara: SIMD is used only where the OS or WINSIMD saves the registers
+// (ntcompat/cpu/simd_policy.h, tuatara/docs/decisions/0009-winsimd.md).
+#include "cpu/simd_policy.h"
+#endif
 #if defined(JS_CODEGEN_X86)
 # include "jit/x86/MacroAssembler-x86.h"
 #elif defined(JS_CODEGEN_X64)
@@ -321,6 +327,24 @@ CPUInfo::SetSSEVersion()
 
     if (maxEnabledSSEVersion != UnknownSSE)
         maxSSEVersion = Min(maxSSEVersion, maxEnabledSSEVersion);
+
+#ifdef TUATARA_NTCOMPAT
+    // CPUID says what the CPU has, not whether the OS saves the registers;
+    // NT 3.51 and 4.0 don't, unless WINSIMD does. Without SSE2 the JIT
+    // turns itself off and the interpreter runs.
+    {
+        SSEVersion allowed =
+            ntcompat_simd_allowed(NTCOMPAT_SIMD_SSE42) ? SSE4_2 :
+            ntcompat_simd_allowed(NTCOMPAT_SIMD_SSE41) ? SSE4_1 :
+            ntcompat_simd_allowed(NTCOMPAT_SIMD_SSSE3) ? SSSE3 :
+            ntcompat_simd_allowed(NTCOMPAT_SIMD_SSE3)  ? SSE3 :
+            ntcompat_simd_allowed(NTCOMPAT_SIMD_SSE2)  ? SSE2 :
+            ntcompat_simd_allowed(NTCOMPAT_SIMD_SSE)   ? SSE : NoSSE;
+        maxSSEVersion = Min(maxSSEVersion, allowed);
+        if (!ntcompat_simd_allowed(NTCOMPAT_SIMD_AVX))
+            avxEnabled = false;
+    }
+#endif
 
     static const int AVXBit = 1 << 28;
     static const int XSAVEBit = 1 << 27;

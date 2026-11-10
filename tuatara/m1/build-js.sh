@@ -21,9 +21,13 @@ work=$(cd "$work" && pwd)
 
 . "$repo/tuatara/m1/ntcompat-env.sh" "$repo" "$work/ntcompat-obj"
 export TUATARA_STATIC_RTL=1
+# The JIT's CPU detection follows the SIMD policy (TUATARA_NTCOMPAT).
+export CFLAGS="-DTUATARA_NTCOMPAT -I$NTCOMPAT_DIR"
+export CXXFLAGS="$CFLAGS"
 
-# old-configure is generated from old-configure.in by autoconf 2.13.
-(cd "$repo/js/src" && autoconf-2.13 old-configure.in > old-configure)
+# configure and old-configure are generated from configure.in and
+# old-configure.in by autoconf 2.13.
+(cd "$repo/js/src" && autoconf-2.13 && autoconf-2.13 old-configure.in > old-configure)
 
 mkdir -p "$work/js-obj"
 cd "$work/js-obj"
