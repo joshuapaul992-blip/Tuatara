@@ -191,14 +191,19 @@ moz_xvalloc(size_t size)
 }
 #endif // if defined(HAVE_VALLOC)
 
-#ifndef MOZ_STATIC_RUNTIME
+/* Tuatara: Windows builds use the static runtime (/MT) too. The static UCRT
+ * allocates from the process heap, so _msize is right for blocks malloc'd by
+ * any module, and the JS shell needs moz_malloc_size_of. */
+#if !defined(MOZ_STATIC_RUNTIME) || defined(XP_WIN)
 size_t
 moz_malloc_usable_size(void *ptr)
 {
     if (!ptr)
         return 0;
 
-#if defined(XP_DARWIN)
+#if defined(XP_WIN) && defined(MOZ_STATIC_RUNTIME)
+    return _msize(ptr);
+#elif defined(XP_DARWIN)
     return malloc_size(ptr);
 #elif defined(HAVE_MALLOC_USABLE_SIZE) || defined(MOZ_MEMORY)
     return malloc_usable_size_impl(ptr);

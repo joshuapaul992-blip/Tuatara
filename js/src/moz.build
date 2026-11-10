@@ -645,6 +645,12 @@ else:
             'icui18n',
             'icuuc',
         ]
+    else:
+        # Tuatara: without a data archive, ICU (with its data) is the 'icu'
+        # library; the static JS library needs it too.
+        USE_LIBS += [
+            'icu',
+        ]
 
 # Explicitly enable WPO and LTCG in MSVC, and deunify sources if
 # we're doing LTO
